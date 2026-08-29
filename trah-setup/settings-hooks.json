@@ -1,0 +1,151 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/pretooluse.py",
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/serena-session-start.py",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/restore-claude-wrapper.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "serena-hooks cleanup --client=claude-code",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/checkpoint.py guard",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/checkpoint.py mark",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/compact-continue.py",
+            "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/statusline/cache-tap.py --reset",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/nudge-compact.py",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/checkpoint.py restore",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/nudge-capability.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolBatch": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/batch-meter.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/nudge-compact.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|mcp__serena__(replace|insert).*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/check-edit.py",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "env": {
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1",
+    "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "6"
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "@PY@ @HOME@/.claude/statusline/cache-tap.py",
+    "refreshInterval": 3
+  },
+  "promptCacheTtl": "1h",
+  "permissions": {
+    "deny": [
+      "Bash(git reset --hard:*)",
+      "Bash(git clean:*)",
+      "Bash(git stash:*)",
+      "Bash(sudo rm:*)",
+      "Workflow",
+      "Artifact"
+    ]
+  }
+}
