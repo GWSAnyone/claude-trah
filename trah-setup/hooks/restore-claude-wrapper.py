@@ -87,6 +87,26 @@ def is_wrapper(path: str) -> bool:
         return False
 
 
+def matches_kit(path: str) -> bool:
+    """Совпадает ли обёртка с образцом из комплекта, байт в байт.
+
+    Маркера мало. Хук ставился только когда обёртки НЕТ вовсе, и УСТАРЕВШУЮ он
+    пропускал: маркер на месте, значит «всё хорошо». Измерено 07.09.2026 —
+    установка отрапортовала «✓ обёртка», а на точке входа осталась редакция без
+    `export TRAH_MODE`, из-за чего сессия режима подхватывала чужие модули
+    диспетчера. Ровно та поломка, против которой комплект и написан: молчит.
+
+    Сравнение целиком, а не по одной строке: любая правка обёртки — от новой
+    переменной до починки разбора аргументов — обязана доезжать сама, иначе
+    следующая такая же дыра будет обнаружена тем же способом, через неделю.
+    """
+    try:
+        with open(path, "rb") as текущая, open(KIT, "rb") as образец:
+            return текущая.read() == образец.read()
+    except OSError:
+        return False
+
+
 def version_key(name: str):
     """Ключ сортировки версий по номеру. Нечисловое имя уезжает в конец."""
     try:
@@ -137,17 +157,22 @@ def install() -> str | None:
     if not is_wrapper(KIT):
         return f"the claude wrapper is gone and the kit is unavailable or substituted: {KIT}"
 
-    # Ничего не затирать молча — правило комплекта, и здесь оно про чужой файл на
+    была_наша = is_wrapper(LINK)
+
+    # Ничего не затирать молча — правило комплекта, и здесь оно про ЧУЖОЙ файл на
     # точке входа: `os.replace` ниже уничтожает его без следа.
     #
-    # Симлинк не в счёт. По этому пути его кладёт штатный установщик Claude Code
-    # и пересоздаёт при КАЖДОМ обновлении — копия такого была бы мусором раз в
-    # неделю, а восстанавливается он одной строкой `ln -s`.
+    # Своя же устаревшая обёртка в копии не нуждается: она лежит в комплекте, в
+    # git, и точно такая же копия рядом была бы мусором при каждом обновлении.
+    #
+    # Симлинк тоже не в счёт. По этому пути его кладёт штатный установщик Claude
+    # Code и пересоздаёт при КАЖДОМ обновлении, а восстанавливается он одной
+    # строкой `ln -s`.
     #
     # Копия делается один раз: второй заход перезаписал бы настоящий оригинал
     # нашей же обёрткой, и спасать было бы уже нечего.
     saved = None
-    if os.path.isfile(LINK) and not os.path.islink(LINK):
+    if os.path.isfile(LINK) and not os.path.islink(LINK) and not была_наша:
         candidate = f"{LINK}.before-trah"
         try:
             if not os.path.exists(candidate):
@@ -165,6 +190,10 @@ def install() -> str | None:
     except OSError as e:
         return f"the claude wrapper could not be restored: {e}"
 
+    if была_наша:
+        return (f"The claude wrapper at {LINK} was stale and has been updated from "
+                f"the kit. Sessions already running still use the old one — restart "
+                f"them to pick up the change.")
     return (f"The claude wrapper was restored at {LINK} from the kit."
             + (f" The file that was there is kept as {saved}." if saved else ""))
 
@@ -178,7 +207,11 @@ def main() -> int:
 
     notes: list[str | None] = []
     try:
-        if not is_wrapper(LINK):
+        # Два условия, а не одно. `is_wrapper` отвечает «наша ли она», а
+        # `matches_kit` — «та ли она». До 07.09.2026 стояло только первое, и
+        # устаревшая обёртка жила на точке входа сколько угодно: хук видел
+        # маркер и молчал, а установка рапортовала успех.
+        if not is_wrapper(LINK) or not matches_kit(LINK):
             notes.append(install())
         notes.append(versions_note())
     except Exception:                      # хук не имеет права мешать старту
