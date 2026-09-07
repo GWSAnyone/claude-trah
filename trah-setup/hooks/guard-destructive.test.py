@@ -178,6 +178,12 @@ CASES = [
     ("git rm --force x.go", BLOCK),
     # Без силы git откажется сам — блокировать нечего.
     ("git rm --cached x.go", PASS),
+    # Дефис внутри ИМЕНИ ФАЙЛА силой не является. 07.09.2026 шаблон искал
+    # `-\S*f` где угодно в строке, и `-diff.py` считался флагом `-f`:
+    # удаление трёх перекрытых инструментов отбивалось как силовое.
+    ("git rm trah-setup/bin/bash-diff.py", PASS),
+    ("git rm dev/self-check.py dev/perf.py", PASS),
+    ("git rm -- some-half.txt", PASS),
 
     # `rm` с раздельными и длинными флагами.
     ("rm -r -f /", BLOCK),

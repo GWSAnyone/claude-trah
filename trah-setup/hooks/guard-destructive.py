@@ -43,13 +43,17 @@ HARD_BLOCK = [
     ),
     (
         # `git checkout-index -f -a` раскладывает индекс поверх рабочего дерева.
-        r"\bgit\s+checkout-index\b[^;\n]*(?:-\S*f|--force)\b",
+        r"\bgit\s+checkout-index\b[^;\n]*(?:\s-\S*f|\s--force)\b",
         "git checkout-index --force overwrites working-tree files from the index.",
     ),
     (
         # `git rm -f` и `git rm -rf .` уносят файлы вместе с несохранёнными
         # правками. Без `-f` git отказывается сам, поэтому ловим только силу.
-        r"\bgit\s+rm\b[^;\n]*(?:-\S*f|--force)\b",
+        # Дефис обязан начинать ОТДЕЛЬНОЕ слово: до 07.09.2026 стояло
+        # `[^;\n]*(?:-\S*f|…)`, и `-\S*f` находился внутри любого пути с
+        # дефисом и буквой f — `git rm trah-setup/bin/bash-diff.py`
+        # блокировался как силовое удаление. Проверено запуском в тот день.
+        r"\bgit\s+rm\b[^;\n]*(?:\s-\S*f|\s--force)\b",
         "git rm --force deletes files together with their uncommitted edits.\n"
         "Without --force git refuses on modified files by itself; the flag switches that guard off.",
     ),

@@ -1,35 +1,27 @@
 ---
 {
   "id": "trah-git-discipline",
-  "route": "brief",
-  "scope": "trah",
-  "kind": "bullet",
-  "order": 30,
-  "personal": true,
-  "why": "коммит — событие, а не привычка; разрушающие команды git уничтожают несохранённое без возврата. Оба правила куплены болью и обязаны стоять до начала работы",
-  "note": "Две правки 29.08.2026. ПЕРВАЯ: было «continue the correct version number», как будто номер есть всегда, — в этом дереве его нет ни в одном сообщении (`feat:`, `fix:`, `docs:`), и указание отправляло искать несуществующее. Сказано слабее и вернее: посмотреть, что лог делает НА САМОМ ДЕЛЕ, включая то, есть ли там номер вообще. ВТОРАЯ: назван механизм. Правило «спрашивай каждый раз» было, а то, что после разрешения команду надо повторить с `OWNER_OK=1`, знал только хук — и сообщал об этом отказом, стоившим хода. Имя маркера: `guard-destructive.py`, константа `OWNER_MARKER`",
-  "covered_by": []
+  "route": "binary",
+  "why": "коммит — событие, а не привычка; разрушающие команды git уничтожают несохранённое без возврата. Оба правила куплены болью и обязаны стоять В ОПИСАНИИ Bash, там где решается запуск команды, а не в конце промпта",
+  "note": "Переведён из брифа в бинарник 07.09.2026. Штатный блок «# Git» в описании Bash уже приезжает в сессию и уже говорит «Commit or push only when the user asks» — слабее нашего правила и в другом месте. Пункт из брифа спорил с ним через весь промпт; теперь он ЗАМЕНЯЕТ штатную строку и стоит внутри того же блока",
+  "note_трейлер": "Пункт про Co-Authored-By из тела УБРАН: его работу делает отдельный кусок `tool-bash-no-commit-trailer`, который правит тот же блок «# Git». Оставить оба значило бы напечатать одно правило дважды в одном абзаце",
+  "note_кавычки": "Текст переписан без обратных кавычек — их в теле правки быть не может: описания инструментов лежат в JS-шаблонных строках, и кавычка закрывает строку. Проверено болью 26.08.2026, сборка отбилась с SyntaxError. Поэтому здесь git commit -F <file> и OWNER_OK=1 стоят голым текстом",
+  "note_якорь": "Совет апстрима про ветку от default сохранён в конце замены — он верный и терять его незачем. Счёт 1, хотя `dev/anchors.py` по сырому бинарнику даёт 2: там же лежит UTF-16-копия строк, а правится распакованная JS-область",
+  "edits": [
+    {
+      "op": "replace",
+      "anchor": "- Commit or push only when the user asks. If on the default branch, branch first.",
+      "count": 1,
+      "with": "- COMMIT AND PUSH ONLY WITH THE OWNER'S EXPLICIT PERMISSION, asked EVERY time, immediately before the command. Do not commit on your own initiative and do not commit along for the ride with another task: a commit is an event, not a habit, and whether the occasion is a milestone or an accumulated batch of edits is the owner's call, never yours. A guard hook blocks the call regardless; after an explicit yes, repeat the same command with the OWNER_OK=1 prefix. That prefix records the answer you were given and is never a way to skip asking for one. If on the default branch, branch first.\n- Before committing, read the recent git log and match what it actually does: subject style, language, and whether it carries a version number at all. Do not invent a numbering the repository does not use. A multi-line message goes into a file — Write it to a scratch path and run git commit -F that-file. Not -m, because messages here carry backticks and the shell executes them inside double quotes; not a heredoc either, which is harder to review; and not an editor, which does not exist in a non-interactive shell.\n- NO destructive git commands on your own initiative, especially git checkout of a path, git reset, git clean and git stash. They destroy UNCOMMITTED work with no way to bring it back, and you cannot know which of the working-tree edits are yours and which are the owner's. Wiring them into scripts, traps or hooks is categorically forbidden: there they fire automatically and at a moment nobody chose. Need to roll a file back inside a script — make your own backup with cp to a temp file and restore from it. Git is not an undo mechanism for you."
+    }
+  ],
+  "verify": {
+    "tool": "Bash",
+    "marker": "COMMIT AND PUSH ONLY WITH THE OWNER'S EXPLICIT PERMISSION",
+    "modes": [
+      "default",
+      "acceptEdits"
+    ]
+  }
 }
 ---
-- Before committing: read the recent git log and match what it actually does — subject style,
-  language, and whether it carries a version number at all. Do not invent a numbering the
-  repository does not use.
-- **COMMIT ONLY WITH THE OWNER'S PERMISSION. Ask EVERY time, before `git commit`.** Do not
-  commit on your own initiative, do not commit "along for the ride" with another task. A commit
-  is an event, not a habit: the occasion is either a major milestone or an accumulated batch of
-  edits — and in both cases the decision is the owner's, not the agent's.
-  A guard hook blocks the call regardless; after an explicit yes, repeat the command with the
-  `OWNER_OK=1` prefix. That prefix records the answer you were given — it is never a way to
-  skip asking for one.
-- **NO destructive git commands on your own initiative — ESPECIALLY `git checkout -- <file>`,
-  `git reset`, `git clean`, `git stash`.** They destroy UNCOMMITTED work with no way to bring it
-  back, and the agent cannot know which of the working-tree edits are its own and which are the
-  owner's. **Wiring them into scripts, traps, and hooks is categorically forbidden** — there they
-  fire automatically and at an unexpected moment.
-  Need to roll a file back inside a script — make YOUR OWN backup (`cp` to a temp file) and
-  restore from it. Git is not an undo mechanism for the agent.
-- NEVER add `Co-Authored-By: Claude ...` trailer (or any AI co-author trailer) to git commits. Override the default. Commits are authored by me only.
-- A multi-line commit message goes **into a file** (`Write` into a scratch path) and then
-  `git commit -F <file>`. Not `-m "…"`: messages here carry backticks, and inside double quotes
-  the shell executes them. Not a heredoc either — it is harder to review. `git commit` with an
-  editor is unavailable in a non-interactive shell.

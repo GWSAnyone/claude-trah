@@ -53,7 +53,7 @@ def кусок(каталог: Path, id_: str, порядок: int, тело: st
 def манифест(каталог: Path, состояния: dict) -> None:
     (каталог / "м.json").write_text(json.dumps(
         {"собрано": "проба",
-         "куски": {id_: {"маршрут": "either", "доставлен": с}
+         "куски": {id_: {"маршрут": "binary", "доставлен": с}
                    for id_, с in состояния.items()}},
         ensure_ascii=False), encoding="utf-8")
 

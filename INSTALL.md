@@ -208,7 +208,7 @@ Claude Code, а восстанавливается одной строкой `ln
 
 ```bash
 ./trah status                                        # что где стоит
-./trah tests                                         # ожидается: наборов 28, сорвалось 0
+./trah tests                                         # ожидается: наборов 27, сорвалось 0
 python3 ~/.claude/hooks/guard-destructive.test.py    # провалов: 0
 claude --version                                     # обёртка не сломала обычный запуск
 ```
