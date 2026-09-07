@@ -107,7 +107,7 @@ python3 trah-setup/bin/install-kit.py --dry-run
 python3 trah-setup/bin/install-kit.py
 ```
 
-Что он кладёт: бриф в `~/.claude/brief.md`, четырёх агентов, пять навыков,
+Что он кладёт: бриф в `~/.claude/brief.md`, трёх агентов, пять навыков,
 стиль вывода, все хуки в `~/.claude/hooks/` (режим 0755), кран в
 `~/.claude/statusline/`, контекст и память Serena в `~/.serena/`.
 
@@ -207,7 +207,7 @@ cd -
 python3 trah-setup/bin/trah.py check
 ```
 
-Прицел лежит в `trah-setup/version.txt` (сейчас `2.1.251`). Если у вас другая
+Прицел лежит в `trah-setup/version.txt` (сейчас `2.1.263`). Если у вас другая
 версия Claude Code, часть якорей разойдётся — это **штатно**, а не поломка
 комплекта: якоря дословные куски минифицированного кода и живут ровно одну
 версию. Тогда:

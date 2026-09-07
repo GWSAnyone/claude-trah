@@ -61,7 +61,24 @@ import re
 import shlex
 import sys
 
-READERS = frozenset({"grep", "rg", "ag", "cat", "head", "tail", "sed", "awk", "find"})
+# Команды, печатающие содержимое файла. Список пополнен 02.09.2026 после
+# замера: восемь форм проходили мимо гарда и вываливали в контекст от 4 до
+# 92 КБ. Повод посмотреть — changelog Claude Code 2.1.259, где Anthropic
+# чинили тот же класс дыр в своих `Read()`-правилах: файл как значение опции,
+# операнды `git`, составные команды.
+READERS = frozenset({
+    "grep", "rg", "ag", "cat", "head", "tail", "sed", "awk", "find",
+    # печатают тело файла целиком или почти целиком
+    "nl", "tac", "bat", "od", "xxd", "hexdump", "strings", "base64",
+    "pr", "fold", "expand", "unexpand", "rev", "cut", "column", "dd",
+    "less", "more",
+})
+
+# Подкоманды `git`, печатающие СОДЕРЖИМОЕ файла, а не сводку о нём.
+# `git diff HEAD -- файл`, `git log`, `git status` сюда не входят намеренно:
+# они печатают разницу, историю и состояние — ровно то, ради чего Bash и
+# нужен, и чего в Serena нет.
+_GIT_ПЕЧАТАЮЩИЕ = frozenset({"grep", "show", "cat-file", "blame", "annotate"})
 INTERPRETERS = frozenset({"python", "python3", "node", "bun", "perl", "ruby", "php"})
 INLINE_FLAGS = frozenset({"-c", "-e", "--eval", "-"})
 
@@ -446,6 +463,58 @@ def redirects_to_project(tokens: list[str], cwd: str) -> bool:
     return False
 
 
+def redirect_inputs(tokens: list[str]) -> list[str]:
+    """Файлы, отданные команде на ВХОД: `nl < internal/x.go`.
+
+    Для печатающей команды это тот же вывод содержимого, что и с операндом,
+    только запись другая. Для `wc -l < файл` — нет: наружу уезжает число, и
+    такие команды в READERS не значатся, так что список им не повредит.
+    """
+    цели = []
+    for i, token in enumerate(tokens):
+        if token == "<" and i + 1 < len(tokens):
+            цели.append(tokens[i + 1])
+        elif token.startswith("<") and len(token) > 1 and not token.startswith("<<"):
+            цели.append(token.lstrip("<"))
+    return цели
+
+
+def option_values(args: list[str]) -> list[str]:
+    """Правые половины `опция=значение`: `dd if=файл`, `--file=файл`.
+
+    Нарезка по пробелам оставляла такой аргумент цельным, и путь внутри него
+    не проверялся вовсе. Применять можно только к аргументам ПОСЛЕ имени
+    команды: до него та же форма означает переменную окружения.
+    """
+    return [a.split("=", 1)[1] for a in args if "=" in a]
+
+
+def git_dump_target(sub: str, operands: list[str], flags: list[str],
+                    cwd: str) -> bool:
+    """Печатает ли этот вызов `git` содержимое файла проекта."""
+    остальное = [a for a in operands if a != sub]
+    if sub == "grep":
+        # То же самое, что `grep -r` по дереву: наружу уезжают строки файлов
+        # проекта. Для этого есть `search_for_pattern`.
+        return our_tree(cwd) or any(project_path(a, cwd) for a in остальное)
+    if sub in ("show", "cat-file"):
+        # `git show HEAD:путь` — слева ревизия, справа путь в дереве.
+        цели = остальное + [a.split(":", 1)[1] for a in остальное if ":" in a]
+        return any(project_path(a, cwd) for a in цели)
+    if sub in ("blame", "annotate"):
+        # С `-L` разбор нацелен на диапазон строк и содержимое не выливает;
+        # без него blame печатает файл целиком. Запрещать вместе с диапазоном
+        # значило бы отнять вопрос «кто менял эту строку», на который в Serena
+        # ответа нет вовсе.
+        if any(f.startswith("-L") for f in flags):
+            return False
+        return any(project_path(a, cwd) for a in остальное)
+    if sub == "diff" and "--no-index" in flags:
+        # Файл вне индекса печатается целиком, а не разницей: это `cat`.
+        return any(project_path(a, cwd) for a in остальное)
+    return False
+
+
 def classify_segment(tokens: list[str], segment: str, raw: str, cwd: str, piped: bool) -> str | None:
     """Что сегмент делает с файлами проекта: 'read', 'write' или ничего."""
     if not tokens:
@@ -503,6 +572,41 @@ def classify_segment(tokens: list[str], segment: str, raw: str, cwd: str, piped:
     if name == "tee":
         return "write" if any(project_target(a, cwd) for a in operands) else None
 
+    # `dd of=файл` — запись, но не перенаправление, поэтому мимо
+    # `redirects_to_project`. Чтение (`if=`) ловится ниже вместе с READERS.
+    if name == "dd":
+        for a in args:
+            if a.startswith("of=") and project_target(a[3:], cwd):
+                return "write"
+
+    if name == "git":
+        # Общие ключи `git` идут ДО подкоманды, и два из них берут значение
+        # отдельным словом. Без этого `git -C /tmp grep` разбирался как
+        # подкоманда `/tmp`, и правило не срабатывало вовсе — а значит и
+        # `git -C <каталог-проекта> grep` проходил мимо.
+        здесь, sub, j = cwd, "", 0
+        while j < len(args):
+            a = args[j]
+            if a == "-C" and j + 1 < len(args):
+                перенос = resolve(args[j + 1], здесь)
+                if os.path.isdir(перенос):
+                    здесь = перенос
+                j += 2
+                continue
+            if a == "-c" and j + 1 < len(args):
+                j += 2
+                continue
+            if a.startswith("-"):
+                j += 1
+                continue
+            sub = a
+            break
+        if sub in _GIT_ПЕЧАТАЮЩИЕ or sub == "diff":
+            хвост = [a for a in args[j + 1:] if not a.startswith("-")]
+            if git_dump_target(sub, [sub] + хвост, flags, здесь):
+                return "read"
+        return None
+
     if name in INTERPRETERS:
         # Считается только код, набранный ПРЯМО ЗДЕСЬ: запуск файла
         # (`python3 tools/x.py`) — исполнение, и оно молчит.
@@ -542,10 +646,22 @@ def classify_segment(tokens: list[str], segment: str, raw: str, cwd: str, piped:
                 after = [a for a in args[args.index("-m") + 2:] if not a.startswith("-")]
                 if any(project_path(a, cwd) for a in after):
                     return "read"
+        # `perl -pe '' файл`, `ruby -ne '…' файл` — неявный цикл «прочитать и
+        # напечатать». Кода в нём нет или почти нет, поэтому разбор выше
+        # ничего не находит, а на выход уезжает файл целиком. Замер
+        # 02.09.2026: `perl -pe '' README.md` выливал 13 КБ мимо гарда.
+        if name in ("perl", "ruby") and any(
+                re.fullmatch(r"-[a-zA-Z]*[pn][a-zA-Z]*", f) for f in flags):
+            if any(project_path(a, cwd) for a in operands):
+                return "read"
         return None
 
     if name in READERS:
-        if any(project_path(a, cwd) for a in operands):
+        # Путь приходит тремя способами, и раньше проверялся только первый:
+        # операндом, значением опции (`dd if=файл`) и перенаправлением на
+        # вход (`nl < файл`).
+        цели = operands + option_values(args) + redirect_inputs(tokens)
+        if any(project_path(a, cwd) for a in цели):
             return "read"
         # Каталог назван ЯВНО и он не наш — смотрят наружу, и это не наше дело.
         #
@@ -650,6 +766,7 @@ def classify(command: str, cwd: str) -> str | None:
     parts = split_segments(strip_heredocs(command))
     piped = False
     here = cwd
+    видели_путь = False  # проектный путь встречался в предыдущих сегментах
     for index, part in enumerate(parts):
         if index % 2 == 1:
             piped = part.strip() == "|"
@@ -667,10 +784,22 @@ def classify(command: str, cwd: str) -> str | None:
                 here = moved
             continue
         got = classify_segment(tokens, segment, command, here, piped)
+        # `echo internal/x.go | xargs cat` — путь приезжает по трубе и
+        # становится АРГУМЕНТОМ, поэтому в самом сегменте его нет и разбор
+        # сегмента честно ничего не находит. Замер 02.09.2026: форма проходила
+        # мимо и выливала файл целиком. Правило узкое — только `xargs`, потому
+        # что он один превращает поток в аргументы; `ls проект | head` читает
+        # чужой вывод, а не файлы, и обязан остаться законным.
+        if (got is None and piped and видели_путь and tokens
+                and os.path.basename(tokens[0]) == "xargs"
+                and any(os.path.basename(t) in READERS for t in tokens[1:])):
+            got = "read"
         if got == "write":
             return "write"  # правка важнее: о ней и говорим
         if got:
             verdict = got
+        if any(project_path(t, here) for t in tokens):
+            видели_путь = True
     if verdict is None and len(inline_code(command).strip().splitlines()) >= BULK_LINES:
         return "bulk"
     return verdict

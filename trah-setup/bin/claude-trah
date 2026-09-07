@@ -1,0 +1,21 @@
+#!/bin/sh
+# Переходник для расширения VS Code.
+#
+# Расширение запускает CLI само и слова `trah` не передаёт: в настройке
+# `claudeCode.claudeProcessWrapper` стоял прямой путь к патченой сборке
+# (`~/.local/share/claude/trah/current`). Сборку оно так получало, а обёртку
+# `~/.local/bin/claude` не запускало вовсе — и вместе с ней не получало НИЧЕГО
+# из того, что режим ставит в окружение:
+#
+#   NUDGE_SERENA_MODE=block              гард чтения падал в `warn`
+#   CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY=32   потолок батча оставался 10
+#   --mcp-config $TRAH_MCP               своя конфигурация MCP
+#   --append-system-prompt-file $BRIEF   бриф не подавался
+#
+# Измерено 30.08.2026: подагент соседней сессии в `SyncedProjects` спокойно
+# прочитал `internal/api/relist_handlers.go` через `command grep`. Тогда это
+# списали на ветку `TRAH_MODE` в обёртке — но обёртка там и не работала.
+#
+# Прямо на `~/.local/bin/claude` расширение завести нельзя: без слова `trah`
+# обёртка берёт штатный бинарь, и патченая сборка теряется. Поэтому переходник.
+exec "${HOME}/.local/bin/claude" trah "$@"

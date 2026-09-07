@@ -113,6 +113,41 @@ HARD_BLOCK = [
         r"\btruncate\b[^;\n]*-s\s*0\b",
         "truncate -s 0 empties the file in place; the uncommitted content is gone.",
     ),
+    # --- Массовое убийство процессов ---------------------------------------
+    #
+    # 01.09.2026: `pkill -f "exe/bot"` совпал со ВСЕМИ ботами экосистемы, а не
+    # с одним. Шаблон ищется по всей командной строке, и общий кусок пути
+    # накрыл каждого. Живые боты легли разом, поднимал владелец руками.
+    #
+    # Правило владельца после этого — категорическое: «ЗАПРЕТИТЬ ВСЕ ЧТО МОЖЕТ
+    # УБИТЬ СЕССИИ ВОТ ТАК, НИКАКОГО ПКИЛЛА И НИЧЕГО ПОДОБНОГО, НОРМАЛЬНАЯ
+    # ОСТАНОВКА ТОЛЬКО». Поэтому здесь жёсткий блок, а не согласие владельца:
+    # у `pkill` нет безопасной формы, которую агент отличил бы заранее, — он
+    # не знает, сколько процессов совпадёт, пока не убьёт их.
+    #
+    # `pgrep` не трогаем: он читает и никого не останавливает.
+    (
+        r"\bpkill\b",
+        "pkill matches a pattern against every process and kills all of them at once.\n"
+        "On 01.09.2026 `pkill -f \"exe/bot\"` matched every bot in the ecosystem, not one.\n"
+        "Stop a service the normal way: through the unit or supervisor that started it,\n"
+        "one named service at a time. Need to see what is running — `pgrep -a` reads and kills nothing.",
+    ),
+    (
+        r"\bkillall\b",
+        "killall stops every process with that name at once, across the whole machine.\n"
+        "Stop a service the normal way, by its unit name, one at a time.",
+    ),
+    (
+        r"\bkill\s+(-9|-KILL|-SIGKILL|-s\s*(9|KILL|SIGKILL))\b",
+        "SIGKILL gives the process no chance to shut down: unflushed state and open\n"
+        "orders stay as they were at the instant it died. Stop it normally and let it finish.",
+    ),
+    (
+        r"\bxargs\b[^;\n]*\bkill\b|\bfuser\b[^;\n]*-k\b|\bsystemctl\b[^;\n]*\bkill\b",
+        "A mass kill: the targets come from a pipe or from a whole cgroup.\n"
+        "Stop the service normally, one unit at a time.",
+    ),
 ]
 
 # Правила, которые ищутся ПО ВСЕЙ СТРОКЕ, а не с начала сегмента.
@@ -134,6 +169,16 @@ HARD_BLOCK_WHOLE = [
         "A recursive tree removal from inside an interpreter one-liner.\n"
         "It bypasses every rule written for the shell, and that is exactly why it is blocked here.\n"
         "Deleting something specific — name the paths and use rm on them, so the guard can see it.",
+    ),
+    (
+        # `kill $(pgrep -f bot)` и `kill \`pgrep …\`` — то же массовое убийство,
+        # только список целей приезжает из подстановки. Здесь, а не в общем
+        # списке: разбиение на сегменты уносит подстановку в отдельный сегмент,
+        # и от команды остаётся голое `kill`, под правило уже не подходящее.
+        r"(?:^|[;&|]\s*)kill\s+[^\n]{0,120}?(?:\$\(|`)",
+        "The list of victims comes from a substitution, so you cannot know how many\n"
+        "processes this kills until it has killed them.\n"
+        "Name the one PID, or stop the service normally.",
     ),
 ]
 

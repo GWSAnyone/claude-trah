@@ -14,8 +14,16 @@ CLAUDE.md, безусловные правила, auto memory и системн�
     restore  UserPromptSubmit     — одно из трёх событий, чей stdout попадает
                                     в контекст; отдаёт указатель и снимает метку
 
-Состояние: <cwd>/.claude/.checkpoint-<host> (пишет скилл) и .checkpoint-pending-<host>.
-Имена с хостом — каталог синкается Syncthing между машинами.
+Состояние: <cwd>/.claude/.checkpoint-<host>-<8 знаков сессии> (пишет скилл),
+рядом .checkpoint-pending-* и .checkpoint-spec-* с тем же хвостом.
+
+Хвост из ДВУХ частей, и обе обязательны. Хост — каталог синкается Syncthing
+между машинами. Сессия — их бывает несколько разом в одном дереве, и без неё
+они пишут в один файл поверх друг друга.
+
+Имя считает `suffix_for`, и это единственное место, где оно считается.
+Скиллу его выдаёт команда `checkpoint.py path` — вычислять имя второй раз
+своими силами нельзя, две редакции одного правила разъезжаются молча.
 """
 
 import json
@@ -26,9 +34,17 @@ import sys
 import time
 import urllib.request
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import goal  # noqa: E402
+
 STALE_SECONDS = 30 * 60
 # Насколько метка времени может опережать часы, оставаясь правдоподобной.
 FUTURE_TOLERANCE = 5 * 60
+
+# Не чаще одного толчка в эти секунды на сессию. Толчок сам приходит репликой и
+# сам вызывает ход — а ход может снова упереться в тот же протухший чекпоинт.
+# Без ограничителя это цикл, и он крутится молча.
+NUDGE_SECONDS = 5 * 60
 
 # Структура пересказа — дословная копия `chat.DefaultCompactSummary` службы
 # Таусозавра (сверено побайтно 26.08: 1765 знаков с обеих сторон).
@@ -164,8 +180,24 @@ def load(path: str) -> dict | None:
         return None
 
 
-def age_seconds(data: dict) -> float | None:
-    stamp = data.get("at")
+def age_seconds(path: str, data: dict | None = None) -> float | None:
+    """Возраст указателя в секундах. Время берётся из mtime файла.
+
+    НЕ из поля `at`: его пишет модель, и пишет по памяти. 30.08.2026 в
+    указателе оказалось время на 189 минут вперёд — сессия проставила его на
+    глаз сразу после честной записи состояния, сторож увидел метку из будущего
+    и отбил сжатие. Отказ был формально верен и при этом полностью ложен:
+    состояние на диске было свежее некуда.
+
+    Момент записи знает файловая система, и спрашивать о нём модель незачем.
+    Поле `at` осталось запасным путём — на указатели прежнего формата и на
+    случай, когда mtime не прочитался.
+    """
+    try:
+        return time.time() - os.path.getmtime(path)
+    except OSError:
+        pass
+    stamp = (data or {}).get("at")
     if not stamp:
         return None
     try:
@@ -175,18 +207,31 @@ def age_seconds(data: dict) -> float | None:
     return time.time() - time.mktime(parsed)
 
 
-def stale_reason(data: dict) -> tuple[str, int] | None:
+def written_at(path: str, data: dict | None = None) -> str:
+    """Когда указатель записан — по файлу, а не по слову модели."""
+    try:
+        return time.strftime("%Y-%m-%dT%H:%M:%S",
+                             time.localtime(os.path.getmtime(path)))
+    except OSError:
+        return str((data or {}).get("at") or "—")
+
+
+def stale_reason(path: str, data: dict | None = None) -> tuple[str, int] | None:
     """Почему чекпоинт нельзя считать свежим: («stale»|«future», минуты).
 
     None — можно.
 
     Отдельной функцией, а не сравнением на месте, ровно из-за второго случая:
-    МЕТКА ИЗ БУДУЩЕГО. 29.08.2026 в чекпоинте лежало `2026-08-30T22:20` при
+    ВРЕМЯ ИЗ БУДУЩЕГО. 29.08.2026 в чекпоинте лежало `2026-08-30T22:20` при
     часах `2026-08-29` — сессии, которая его писала, система выдала неверную
     дату, и она записала её честно. Возраст выходил отрицательным, условие
     «старше получаса» не срабатывало НИКОГДА, и сторож пропускал любое сжатие,
     лишь бы файл существовал. Проверка была включена и при этом не работала —
     худший из отказов, потому что он не виден.
+
+    С переходом на mtime (30.08.2026) этот случай почти исчез: время ставит
+    файловая система. Проверка оставлена на съехавшие назад часы машины и на
+    запасной путь по полю `at`, где всё прежнее в силе.
 
     Допуск в пять минут оставлен часам: они расходятся на минуты, но не на
     сутки.
@@ -195,7 +240,7 @@ def stale_reason(data: dict) -> tuple[str, int] | None:
     говорит с моделью по-английски, а помощник `compact-order.py` — с
     владельцем по-русски, и одна общая формулировка не подошла бы обоим.
     """
-    age = age_seconds(data)
+    age = age_seconds(path, data)
     if age is None:
         return None
     if age < -FUTURE_TOLERANCE:
@@ -234,7 +279,7 @@ def dirty_paths(cwd: str) -> str:
     return f"{line} и ещё {rest}" if rest else line
 
 
-def facts(cwd: str, data: dict | None) -> str:
+def facts(cwd: str, data: dict | None, path: str = "") -> str:
     """Что верно прямо сейчас и из разговора не восстановится.
 
     Путь плана и `next` — потому что содержимое файлов сжатие не переносит
@@ -248,7 +293,7 @@ def facts(cwd: str, data: dict | None) -> str:
             lines.append(f"- Active plan: `{data['plan']}` — open it and read "
                          "the section «Где я сейчас».")
         if data.get("next"):
-            at = f" ({data['at']})" if data.get("at") else ""
+            at = f" ({written_at(path, data)})" if path or data.get("at") else ""
             lines.append(f"- Last checkpoint{at} says next: {data['next']}")
     if dirty := dirty_paths(cwd):
         lines.append(f"- Uncommitted right now: {dirty}")
@@ -320,6 +365,58 @@ def note(cwd: str, session_id: str, who: str) -> None:
         pass
 
 
+def nudge_stamp_path(cwd: str, session_id: str = "") -> str:
+    """Когда сессию в последний раз толкали после отбитого сжатия."""
+    return os.path.join(cwd, ".claude", f".compact-nudged-{suffix_for(session_id)}")
+
+
+def nudge(cwd: str, session_id: str, reason: str) -> str:
+    """Толкнуть сессию репликой после отказа в сжатии.
+
+    Отказ печатается в stderr хука, а stderr — это указание МОДЕЛИ, которой
+    может не достаться хода. Замер по стенограмме сессии 0d52af2f (01.09.2026):
+    из 21 отбитого сжатия 13 раз сессия встала и ждала реплику человека. Ход
+    даёт только кадр в сокет — тот же путь, которым `compact-order.py` заказывает
+    сжатие, а `compact-continue.py` возвращает работу после удавшегося.
+
+    Возвращает пустую строку при успехе, иначе — беду для stderr. Тихо: ради
+    толчка отказ не отменяется и не превращается в ошибку.
+    """
+    if os.environ.get("CHECKPOINT_NUDGE") == "off":
+        return "толчок выключен"
+
+    штамп = nudge_stamp_path(cwd, session_id)
+    try:
+        if time.time() - os.path.getmtime(штамп) < NUDGE_SECONDS:
+            return "толчок пропущен: предыдущий был только что"
+    except OSError:
+        pass
+
+    свой = os.path.dirname(os.path.abspath(__file__))
+    if свой not in sys.path:
+        sys.path.insert(0, свой)
+    try:
+        import sockmsg
+    except ImportError as e:
+        return f"sockmsg не нашёлся: {e}"
+
+    беда = sockmsg.послать(
+        f"Compaction was refused: {reason}. Update the record — the working "
+        "state, what was measured, what was tried and abandoned — then order "
+        "the compaction again. Continue the interrupted work afterwards; do "
+        "not ask what to do."
+    )
+    if беда:
+        return беда
+    try:
+        os.makedirs(os.path.join(cwd, ".claude"), exist_ok=True)
+        with open(штамп, "w", encoding="utf-8") as f:
+            f.write(time.strftime("%Y-%m-%dT%H:%M:%S"))
+    except OSError:
+        pass
+    return ""
+
+
 def take_note(cwd: str, session_id: str) -> str:
     """Прочитать заметку и убрать её: она про одно конкретное сжатие."""
     path = spec_note_path(cwd, session_id)
@@ -360,33 +457,38 @@ def guard(payload: dict) -> int:
     продолжать.
     """
     cwd = payload.get("cwd", ".")
-    data = load(resolve_checkpoint(cwd, payload.get("session_id", "")))
+    cp_path = resolve_checkpoint(cwd, payload.get("session_id", ""))
+    data = load(cp_path)
 
     if payload.get("trigger") == "manual":
         if data is None:
             sys.stderr.write(
                 "Compaction stopped: there is no checkpoint.\n\n"
-                "The conversation is about to fold into a summary, and everything "
-                "worked out but not written to disk will be lost. First `/checkpoint` "
-                "— it updates the plan and writes down what to continue from. Then "
-                "compaction is safe.\n\n"
-                "If the task is finished and there is nothing to continue — say so to "
-                "the owner and offer `/clear` instead of `/compact`: it is cheaper."
+                "Everything worked out but not written to disk would be lost.\n\n"
+                "Write the state down, then repeat the compaction. Do not stop "
+                "here and do not ask what to do.\n\n"
+                "Task finished and nothing to continue — offer `/clear` instead."
             )
+            if беда := nudge(cwd, payload.get("session_id", ""),
+                             "there is no checkpoint"):
+                sys.stderr.write(f"\n\ncheckpoint.py: {беда}")
             return 2
-        if beda := stale_reason(data):
+        if beda := stale_reason(cp_path, data):
             kind, minutes = beda
             what = (f"the checkpoint is {minutes} min stale" if kind == "stale"
-                    else f"the checkpoint is timestamped {minutes} min in the "
-                         "FUTURE — the machine clock or the date handed to a "
-                         "session has drifted, and staleness cannot be judged")
+                    else f"the checkpoint file is dated {minutes} min in the "
+                         "FUTURE — the machine clock has drifted, and staleness "
+                         "cannot be judged")
             sys.stderr.write(
                 f"Compaction stopped: {what}.\n\n"
-                f"Last recorded: {data.get('at')}\n"
+                f"Written: {written_at(cp_path, data)}\n"
                 f"Plan: {data.get('plan', '—')}\n\n"
-                "Much has been done since that is not in the plan. Run `/checkpoint` "
-                "again, then compact."
+                "Much has been done since that is not in the record.\n\n"
+                "Bring it up to date, then repeat the compaction. Do not stop "
+                "here and do not ask what to do."
             )
+            if беда := nudge(cwd, payload.get("session_id", ""), what):
+                sys.stderr.write(f"\n\ncheckpoint.py: {беда}")
             return 2
 
     # Указания диктует служба — и структуру, и факты (её список фактов шире
@@ -394,6 +496,11 @@ def guard(payload: dict) -> int:
     # поверх значило бы прислать модели два одинаковых «## Compact
     # Instructions» и два «## Facts at the moment of compaction».
     session_id = payload.get("session_id", "")
+    # Активная цель `/goal`. Её оценщик читает ТОЛЬКО стенограмму, а сжатие
+    # стенограмму заменяет выжимкой — значит условие и доказательства обязаны
+    # уехать в выжимку, иначе цель станет недоказуемой и будет блокировать
+    # остановку до ручной отмены. Разбор механизма — в `goal.py`.
+    цель = goal.состояние(payload.get("transcript_path"))
     if service_speaks(payload):
         # Молчание — опасная сторона развилки, поэтому оно не бесшумно.
         # Строка уходит в stderr (хук вышел нулём, и она видна в событии
@@ -404,12 +511,19 @@ def guard(payload: dict) -> int:
         note(cwd, session_id, "служба (её хук PreCompact)")
         sys.stderr.write("checkpoint.py: структуру пересказа диктует служба — "
                          "своих указаний не печатаю\n")
+        # А раздел про активную цель печатаем и здесь. Службе про `/goal`
+        # ничего не известно, дублировать нечего, — и без этого раздела
+        # оценщик цели после сжатия останется без доказательств.
+        if цель:
+            sys.stdout.write(goal.указание_к_выжимке(цель) + "\n")
         return 0
 
     note(cwd, session_id, "этот хук")
     out = SUMMARY_SPEC
-    if extra := facts(cwd, data):
+    if extra := facts(cwd, data, cp_path):
         out += "\n\n" + extra
+    if цель:
+        out += "\n\n" + goal.указание_к_выжимке(цель)
     sys.stdout.write(out + "\n")
     return 0
 
@@ -417,8 +531,14 @@ def guard(payload: dict) -> int:
 def mark(payload: dict) -> int:
     """PostCompact: сохранить пересказ и поставить метку для восстановления."""
     cwd = payload.get("cwd", ".")
-    cp_path, pending, base = paths(cwd, payload.get("session_id", ""))
+    session_id = payload.get("session_id", "")
+    cp_path, pending, base = paths(cwd, session_id)
     os.makedirs(base, exist_ok=True)
+
+    # Заметку снимаем ВСЕГДА, а не только когда есть что записать. Прежняя
+    # редакция звала `take_note` внутри `if summary:` — и сжатие с пустым
+    # пересказом оставляло заметку лежать навсегда. За неделю их натекло три.
+    who = take_note(cwd, session_id) or "неизвестно"
 
     summary = payload.get("compact_summary") or ""
     if summary:
@@ -428,7 +548,6 @@ def mark(payload: dict) -> int:
         # Кто диктовал структуру — в заголовок. Без этой строки пересказ,
         # вышедший стандартным из-за того, что замолчали оба, ничем не
         # отличается от пересказа, которому просто не последовали.
-        who = take_note(cwd, payload.get("session_id", "")) or "неизвестно"
         with open(os.path.join(log_dir, f"{stamp}.md"), "w", encoding="utf-8") as f:
             f.write(f"# Пересказ компакции {stamp}\n\n"
                     f"Триггер: {payload.get('trigger', '?')}\n"
@@ -436,6 +555,14 @@ def mark(payload: dict) -> int:
 
     with open(pending, "w", encoding="utf-8") as f:
         f.write(payload.get("trigger", "manual"))
+
+    # Уборка идёт здесь, а не на старте сессии: `PostCompact` случается редко,
+    # а хук и так уже разбудил питон. Своя беда уборки не должна ронять метку,
+    # ради которой хук и позван, — поэтому она последней и под глушителем.
+    try:
+        sweep(cwd, session_id)
+    except Exception:                                          # noqa: BLE001
+        pass
     return 0
 
 
@@ -451,7 +578,8 @@ def restore(payload: dict) -> int:
     except OSError:
         pass
 
-    data = load(resolve_checkpoint(cwd, session_id))
+    cp_path = resolve_checkpoint(cwd, session_id)
+    data = load(cp_path)
     lines = [
         "The context has just been compacted. Below is what compaction does not carry over.",
         "",
@@ -466,7 +594,7 @@ def restore(payload: dict) -> int:
             "",
             f"Plan:            {data.get('plan', '—')}",
             f"Serena project:  {data.get('project', '—')}",
-            f"Recorded at:     {data.get('at', '—')}",
+            f"Recorded at:     {written_at(cp_path, data)}",
             f"Next action:     {data.get('next', '—')}",
         ]
     else:
@@ -476,13 +604,115 @@ def restore(payload: dict) -> int:
     return 0
 
 
+def where() -> int:
+    """Напечатать путь к указателю ЭТОЙ сессии. Не событие — команда для скилла.
+
+    Правило именования состояния должно жить в ОДНОМ месте. Раньше оно было
+    записано дважды: здесь, в `suffix_for`, и словами в тексте скилла, который
+    вычислял восьмизнак сам — `ls -t` по каталогу стенограмм и `head -1`. Под
+    параллельными сессиями это гонка: самая свежая стенограмма в каталоге с
+    равным успехом чужая. Замер 30.08.2026 по 257 стенограммам этого проекта —
+    56 минут, в которые менялись сразу несколько.
+
+    Расплата двусторонняя и обе стороны тихие: указатель уезжает под чужим
+    именем (сосед теряет свой), а `guard` ищет строго своё имя, не находит и
+    блокирует сжатие словами «чекпоинта нет» — сразу после того, как скилл его
+    записал.
+
+    Идентификатор при этом лежит в окружении: `CLAUDE_CODE_SESSION_ID` ставит
+    сам CLI. Нет его — молчать нельзя, иначе имя тихо выродится в общее на все
+    сессии; поэтому отказ с кодом 1, а запасной путь остаётся за вызывающим.
+    """
+    session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    if not session_id:
+        sys.stderr.write(
+            "checkpoint.py path: в окружении нет CLAUDE_CODE_SESSION_ID.\n"
+            "Без него имя указателя выродится в общее на все сессии этой "
+            "машины, и параллельные сессии затрут друг друга.\n")
+        return 1
+    scoped, _, _ = paths(os.getcwd(), session_id)
+    sys.stdout.write(scoped + "\n")
+    return 0
+
+
+# Приставки имён состояния. Порядок важен: `.checkpoint-` — приставка и для
+# двух других, и проверять её надо последней.
+STATE_PREFIXES = (".checkpoint-pending-", ".checkpoint-spec-", ".checkpoint-")
+RETIRED_DIR = "checkpoints-retired"
+
+
+def transcripts_dir(cwd: str) -> str:
+    """Каталог стенограмм этого проекта. CLI кодирует путь заменой `/` на `-`."""
+    return os.path.join(os.path.expanduser("~"), ".claude", "projects",
+                        os.path.abspath(cwd).replace("/", "-"))
+
+
+def own_suffix(name: str, host: str) -> str:
+    """Восьмизнак сессии из имени файла состояния ЭТОЙ машины, иначе пусто.
+
+    Чужой хост не наш: каталог синкается Syncthing, и файл с другой машины
+    трогать нельзя — там своя жизнь и свои стенограммы.
+    """
+    for prefix in STATE_PREFIXES:
+        if not name.startswith(prefix):
+            continue
+        rest = name[len(prefix):]
+        return rest[len(host) + 1:] if rest.startswith(host + "-") else ""
+    return ""
+
+
+def sweep(cwd: str, session_id: str = "") -> int:
+    """Убрать в архив состояние сессий, чьих стенограмм больше нет.
+
+    Указатели копились без предела: 30.08.2026 в этом дереве их лежало десять
+    на 17 625 байт, самому старому шесть суток. Читал их скилл склейкой по
+    маске, то есть рисковал утащить `next` недельной давности из чужой сессии.
+
+    Файлы ПЕРЕНОСЯТСЯ, а не удаляются: в указателе лежит слово владельца о том,
+    с чего продолжать, и цена ошибочного суждения «эта сессия мертва»
+    несопоставима с ценой лишнего файла на диске.
+
+    Признак смерти один — пропала стенограмма. Пустой список живых означает,
+    что каталог стенограмм не прочитался, и тогда мы не судим вовсе: иначе
+    первая же ошибка чтения увезла бы в архив всё разом.
+    """
+    base = os.path.join(cwd, ".claude")
+    try:
+        live = {n[:8] for n in os.listdir(transcripts_dir(cwd))
+                if n.endswith(".jsonl")}
+        names = sorted(os.listdir(base))
+    except OSError:
+        return 0
+    if not live:
+        return 0
+
+    host, mine, moved = socket.gethostname(), session_id[:8], 0
+    for name in names:
+        suffix = own_suffix(name, host)
+        if not suffix or suffix == mine or suffix in live:
+            continue
+        try:
+            os.makedirs(os.path.join(base, RETIRED_DIR), exist_ok=True)
+            os.replace(os.path.join(base, name),
+                       os.path.join(base, RETIRED_DIR, name))
+            moved += 1
+        except OSError:
+            pass
+    return moved
+
+
 MODES = {"guard": guard, "mark": mark, "restore": restore}
 
 
 def main() -> int:
-    if len(sys.argv) < 2 or sys.argv[1] not in MODES:
-        sys.stderr.write(f"использование: checkpoint.py {{{'|'.join(MODES)}}}\n")
+    команды = (*MODES, "path")
+    if len(sys.argv) < 2 or sys.argv[1] not in команды:
+        sys.stderr.write(f"использование: checkpoint.py {{{'|'.join(команды)}}}\n")
         return 1
+    # `path` — команда, а не событие: полезной нагрузки на входе нет, и ждать
+    # её от stdin значило бы повиснуть на пустом терминале.
+    if sys.argv[1] == "path":
+        return where()
     try:
         payload = json.load(sys.stdin)
     except (ValueError, OSError):

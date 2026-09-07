@@ -76,6 +76,7 @@ from pathlib import Path
      r"Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|"
      r"mcp__serena__(replace|insert|rename|safe_delete).*"),
     ("guard-destructive.py", r"Bash"),
+    ("guard-sleep.py", r"Bash|PowerShell"),
     ("guard-session-launch.py", r"Bash"),
     ("guard-serena-scope.py", r"mcp__serena__.*"),
     ("nudge-serena.py", r"Bash|PowerShell"),

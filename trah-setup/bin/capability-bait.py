@@ -67,7 +67,7 @@ def приманки(страница: Path) -> list:
     return [
         (
             "поиск-веером",
-            ["codebase-locator", "Explore", "Agent"],
+            ["Explore", "Agent"],
             "Где в этом дереве проверяется согласие владельца на коммит? Нужен "
             "список файл:строка по всем каталогам сразу — cmd/, internal/, "
             "tools/, trah-setup/. Содержимое файлов мне не нужно, нужен "
@@ -83,7 +83,7 @@ def приманки(страница: Path) -> list:
         ),
         (
             "безопасность",
-            ["security-reviewer", "security", "scan-", "Agent", "Skill"],
+            ["critical-reviewer", "security", "scan-", "Agent", "Skill"],
             "Перед выкаткой проверь на дыры хук "
             "trah-setup/hooks/guard-destructive.py — он решает, пускать ли "
             "разрушительную команду, и обойти его нельзя. Найди, чем его можно "

@@ -99,6 +99,62 @@ def main() -> int:
         check(argv(p) == ["--append-system-prompt-file", brief, "-p", "привет"],
               "бриф найден в самом корне проекта", str(argv(p)))
 
+        # ── режим гарда ставится ВСЕМ сессиям, не только `claude trah` ───────
+        #
+        # До 30.08.2026 `NUDGE_SERENA_MODE=block` жил в ветке режима, и обычная
+        # сессия шла с мягким `warn`: чтение файла проекта через оболочку в ней
+        # проходило. Тест закрывает именно это — вердикт спрашиваем у подставного
+        # бинаря, потому что переменная уезжает в окружение, а не в argv.
+        env_probe = write(os.path.join(root, "fake", "claude-env"),
+                          "#!/usr/bin/env bash\n"
+                          "printf 'NUDGE_SERENA_MODE=%s\\n' \"${NUDGE_SERENA_MODE:-НЕТ}\"\n",
+                          0o755)
+        plain = os.path.join(root, "plain")
+        os.makedirs(plain, exist_ok=True)
+        outside_probe = plain
+        p = box.run(["-p", "x"], cwd=outside_probe,
+                    env_extra={"CLAUDE_WRAPPER_TARGET": env_probe})
+        check(argv(p) == ["NUDGE_SERENA_MODE=block"],
+              "обычный запуск идёт с block", str(argv(p)))
+
+        p = box.run(["trah", "-p", "x"], cwd=outside_probe,
+                    env_extra={"CLAUDE_WRAPPER_TARGET": env_probe})
+        check(argv(p) == ["NUDGE_SERENA_MODE=block"],
+              "режим trah тоже с block", str(argv(p)))
+
+        p = box.run(["-p", "x"], cwd=outside_probe,
+                    env_extra={"CLAUDE_WRAPPER_TARGET": env_probe,
+                               "NUDGE_SERENA_MODE": "warn"})
+        check(argv(p) == ["NUDGE_SERENA_MODE=warn"],
+              "заданное снаружи значение сильнее умолчания", str(argv(p)))
+
+        # ── потолок батчинга ставится ВСЕМ сессиям ───────────────────────────
+        #
+        # До 30.08.2026 `export CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY=32` стоял в
+        # ветке режима, а комментарий рядом обещал одинаковость двух контуров.
+        # У обычной сессии оставались зашитые в CLI десять — втрое уже, и замер
+        # ширины батча из одного контура ничего не говорил о другом.
+        batch_probe = write(os.path.join(root, "fake", "claude-batch"),
+                            "#!/usr/bin/env bash\n"
+                            "printf 'BATCH=%s\\n' "
+                            "\"${CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY:-НЕТ}\"\n",
+                            0o755)
+        p = box.run(["-p", "x"], cwd=outside_probe,
+                    env_extra={"CLAUDE_WRAPPER_TARGET": batch_probe})
+        check(argv(p) == ["BATCH=32"],
+              "обычный запуск идёт с потолком 32", str(argv(p)))
+
+        p = box.run(["trah", "-p", "x"], cwd=outside_probe,
+                    env_extra={"CLAUDE_WRAPPER_TARGET": batch_probe})
+        check(argv(p) == ["BATCH=32"],
+              "режим trah тоже с потолком 32", str(argv(p)))
+
+        p = box.run(["-p", "x"], cwd=outside_probe,
+                    env_extra={"CLAUDE_WRAPPER_TARGET": batch_probe,
+                               "CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY": "8"})
+        check(argv(p) == ["BATCH=8"],
+              "заданный снаружи потолок сильнее умолчания", str(argv(p)))
+
         # ── вне проекта ──────────────────────────────────────────────────────
         outside = os.path.join(root, "outside")
         os.makedirs(outside, exist_ok=True)

@@ -44,7 +44,7 @@ from pathlib import Path
 БЕЗОПАСНОСТЬ = (
     "This task is a security pass. There is a skill for it — `security` — which "
     "scopes the work, models the threat, delegates the reading and triages what "
-    "comes back; and an agent, `security-reviewer`, which reads a named area and "
+    "comes back; and an agent, `critical-reviewer`, which reads a named area and "
     "reports every defect it finds. Call one of them, or say in your answer why "
     "you are doing it by hand."
 )
@@ -85,7 +85,7 @@ _ПОСЛЕДСТВИЯ = re.compile(
 # Способность уже названа — молчим.
 _НАЗВАНЫ = {
     "security": re.compile(
-        r"(/security\b|навык\W{0,3}security|security-reviewer|скан\w* безопасн)", re.I),
+        r"(/security\b|навык\W{0,3}security|critical-reviewer|скан\w* безопасн)", re.I),
     "sequential": re.compile(
         r"(sequential[- ]?thinking|последовательн\w* мышлен)", re.I),
 }

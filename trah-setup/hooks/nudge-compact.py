@@ -67,6 +67,7 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import goal  # noqa: E402
 import sockmsg  # noqa: E402
 
 СОСТОЯНИЕ = Path(os.environ.get("TMPDIR", "/tmp")) / "nudge-compact"
@@ -259,7 +260,35 @@ def записать_состояние(файл: Path, данные: dict) -> N
     файл.write_text(json.dumps(данные, ensure_ascii=False), encoding="utf-8")
 
 
-def сообщение(всего: int, ступень_: int) -> str:
+def о_застрявшей_цели(цель: dict) -> str:
+    """Цель отбита оценщиком столько раз, что пора считать это застреванием.
+
+    Предела итераций у `/goal` нет вовсе — в их коде такой величины не
+    существует. Каждая попытка остановиться стоит отдельного вызова модели по
+    всей стенограмме, поэтому цель, которую нельзя доказать, тратит деньги
+    молча и бесконечно. Мы не снимаем её сами: это решение владельца. Мы
+    требуем назвать вслух, достижима ли она.
+    """
+    условие = цель["условие"].strip()
+    причина = (цель.get("причина") or "").strip()
+    хвост = (f"\n\nПоследний отказ оценщика: {причина}" if причина else "")
+    return (
+        f"The goal «{условие}» has been judged NOT MET {цель['отказов']} "
+        "times. There is no iteration cap: it will keep blocking every stop, "
+        "and each attempt costs an evaluator pass over the whole "
+        f"transcript.{хвост}\n\n"
+        "Stop and account for it in your next reply, in three lines:\n"
+        "  1. What concrete evidence is still missing, and whether it can "
+        "appear in the transcript at all — the evaluator reads nothing else.\n"
+        "  2. Whether the condition is achievable as worded, or was worded so "
+        "it can never be proven.\n"
+        "  3. Your recommendation: keep going, reword it, or clear it.\n\n"
+        "Do not clear the goal yourself — that is the owner's call. Say which "
+        "you recommend and why, and keep working meanwhile."
+    )
+
+
+def сообщение(всего: int, ступень_: int, цель: dict | None = None) -> str:
     """Текст напоминания. С второй ступени — строгий.
 
     Первая ступень предлагает, дальше — требует. Разница не в громкости, а в
@@ -283,10 +312,22 @@ def сообщение(всего: int, ступень_: int) -> str:
         "Afterwards the work carries on by itself: a message will arrive "
         "saying where to continue from.\n\n")
 
+    # Активная цель тянет в противоположную сторону: она существует ровно для
+    # того, чтобы конец шага не наступал. Разрешаем спор здесь, потому что
+    # иначе сессия не сможет ни закончить, ни сжаться.
+    про_цель = ""
+    if цель is not None:
+        про_цель = (
+            "\n\nA `/goal` is active. It SURVIVES compaction: the condition "
+            "lives in session state, not in the messages, and the PreCompact "
+            "hook carries the condition and the evidence into the summary. So "
+            "the goal is NOT a reason to postpone — checkpoint, compact, and "
+            "carry on toward it afterwards.")
+
     if ступень_ < ВТОРАЯ:
         return (шапка + "Do this now, without dropping the thread:\n" + шаги +
                 "If stopping right now would lose work, say so in one line and "
-                "carry on — the reminder returns at the next rung.")
+                "carry on — the reminder returns at the next rung." + про_цель)
 
     return (шапка +
             "This is the second rung and it is no longer a suggestion. You "
@@ -299,7 +340,7 @@ def сообщение(всего: int, ступень_: int) -> str:
             "postponing costs the owner money on every turn that follows. If "
             "you still do not compact, say plainly in your reply that you "
             "refused and why; silence here reads as the reminder having been "
-            "ignored.")
+            "ignored." + про_цель)
 
 
 def main() -> int:
@@ -319,6 +360,18 @@ def main() -> int:
 
     файл = состояние(session_id)
     сост = прочитать_состояние(файл)
+
+    # Застрявшая цель разбирается ДО лесенки сжатия и независимо от неё: у
+    # `/goal` нет предела итераций вовсе, поэтому цель, которую нельзя
+    # доказать, растит счёт сама по себе, без всякой связи с размером
+    # контекста. Говорим один раз на каждый десяток отказов.
+    цель = goal.состояние(стенограмма)
+    ступень_цели = (цель["отказов"] // goal.ПОТОЛОК_ОТКАЗОВ) if цель else 0
+    if ступень_цели != int(сост.get("цель_ступень", 0) or 0):
+        сост["цель_ступень"] = ступень_цели
+        записать_состояние(файл, сост)
+        if цель is not None and ступень_цели > 0:
+            sockmsg.послать(о_застрявшей_цели(цель))
 
     # Сначала кран строки состояния, стенограмма — запасной путь. Числа у них
     # разной природы: кран считает с своего запуска, стенограмма — с последней
@@ -353,7 +406,7 @@ def main() -> int:
     сост["ступень"] = текущая
     записать_состояние(файл, сост)
 
-    текст = сообщение(всего, текущая)
+    текст = сообщение(всего, текущая, цель)
     беда = sockmsg.послать(текст)
     if беда and полезное.get("hook_event_name") != "PostToolBatch":
         # Запасной путь есть только у `Stop`: `PostToolBatch` решений не

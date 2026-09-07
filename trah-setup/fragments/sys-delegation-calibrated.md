@@ -4,19 +4,20 @@
   "route": "either",
   "why": "в промпте каждой сессии стоит скрытый запрет звать подагента: «Do not call the AgentTool unless the user requested it». Это раздел `heron_brook`, он включён по способности модели `opus_5_prompt_bundle` (то есть только на Opus 5) и не настраивается ничем — ни ключом настроек, ни флагом, ни переменной окружения. Выключатель `tengu_fennel_godwit` серверный и по умолчанию `false`, проверено в `~/.claude.json` этой машины. Итог измерим: делегирование 9 вызовов из 7216 за 170 стенограмм, 0.12%. Одновременно бриф везёт 35 строк о том, как правильно снаряжать подагента, — инструкцию, исполнить которую запрещено строкой выше. Два противоречащих приказа в одном промпте",
   "note": "Запрет поставлен не со зла: руководство Anthropic по Opus 5 прямо говорит, что эта модель делегирует ОХОТНЕЕ прежних и на мелких задачах это множит цену и время. Поэтому кусок не удаляет запрет, а ЗАМЕНЯЕТ его выверенной формулировкой из того же руководства (раздел «Controlling subagent spawning»): смысл сохранён, способность делегировать на настоящем веере возвращена. Берём их текст дословно — он и авторитетен, и точнее нашего",
-  "note_якорь": "Исходник 2.1.247: `lqr=[\"Do not call…\",\"Do not use workflows…\"].join(`. Имя `lqr` в якорь НЕ берётся: в 2.1.219 та же константа звалась `Jep`, минифицированные имена меняются каждой сборкой. Взят текстовый якорь. В бинарнике строка встречается 2 раза, вторая копия — в области байткода, где длина строки закодирована; скрипт правок её не видит и видеть не должен, поэтому ожидаемый счёт по распакованному JS равен 1",
-  "note_вторая_строка": "Соседнюю строку «Do not use workflows or deep-research unless the user requested it» НЕ трогаем: у владельца `enableWorkflows: false`, а `Workflow` и `Artifact` стоят в запрете настроек — она и так ни на что не влияет. Меньше правка, меньше риск",
+  "note_якорь": "Живая строка 2.1.257 — ШАБЛОННЫЙ литерал с подстановкой имени инструмента: ``var Czn=`Do not use the ${_t} tool, workflows, or deep-research unless the user, a CLAUDE.md file, or a skill asks for it` ``. Ни `Czn`, ни `_t` в якорь не берутся: минифицированные имена меняются каждой сборкой. Якорь — хвост ПОСЛЕ подстановки, от слова `tool,`; счёт по распакованному JS равен 1. Отсюда и форма замены: начало «Do not use the <имя> » остаётся от апстрима, и наш текст обязан читаться его продолжением",
+  "note_вторая_строка": "До 2.1.252 запрет ехал двумя соседними строками, и вторую — «Do not use workflows or deep-research unless the user requested it» — не трогали: у владельца `enableWorkflows: false`, а `Workflow` и `Artifact` стоят в запрете настроек. В 2.1.257 апстрим слил обе в одну фразу, поэтому теперь замена несёт хвост про workflows и deep-research сама: иначе правка молча сняла бы и этот запрет",
+  "note_переезд_257": "01.09.2026, 2.1.257: в живой системный промпт едет ОДНА фраза — «Do not use the Agent tool, workflows, or deep-research unless the user, a CLAUDE.md file, or a skill asks for it». Старая `Do not call the AgentTool unless the user` в бандле осталась, счёт по ней сходится, но в промпт она больше не попадает: правка по ней ложится в мёртвый код и доставка молча не срабатывает. Ровно так и вышло — `check` показал ✓, а проба поймала промпт без маркера. Урок на будущие переезды: сверка якоря доказывает, что строка ЕСТЬ, и ничего не говорит о том, что она ЖИВАЯ; живость доказывает только `verify` пробой",
   "edits": [
     {
       "op": "replace",
-      "anchor": "Do not call the AgentTool unless the user requested it",
+      "anchor": "tool, workflows, or deep-research unless the user, a CLAUDE.md file, or a skill asks for it",
       "count": 1,
-      "with": "Delegate to a subagent only for large tasks that are genuinely independent and parallelizable, such as a wide multi-file investigation. Do not delegate work you can finish yourself in a handful of tool calls, and do not use subagents to verify or double-check your own work. If one subagent can complete the task, use one rather than several, and keep spawn counts low."
+      "with": "tool for work you can finish yourself in a handful of tool calls, and never to verify or double-check your own work. Delegate only for large tasks that are genuinely independent and parallelizable, such as a wide multi-file investigation; if one subagent can complete the task, use one rather than several, and keep spawn counts low. Do not use workflows or deep-research unless the user, a CLAUDE.md file, or a skill asks for it"
     }
   ],
   "verify": {
     "where": "system",
-    "marker": "Delegate to a subagent only for large tasks",
+    "marker": "Delegate only for large tasks that are genuinely independent",
     "modes": [
       "default"
     ]

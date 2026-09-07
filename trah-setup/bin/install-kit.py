@@ -72,11 +72,24 @@ from pathlib import Path
     ("global-CLAUDE.md", ".claude/CLAUDE.md"),
     ("rules/mcp-discipline.md", ".claude/rules/mcp-discipline.md"),
     ("agents/senior-reviewer.md", ".claude/agents/senior-reviewer.md"),
-    # Остальные агенты, 29.08.2026. Набор подобран так, чтобы роли не
-    # пересекались: senior-reviewer читает вглубь, locator — вширь,
-    # security-reviewer читает враждебно, test-writer единственный пишет.
-    ("agents/codebase-locator.md", ".claude/agents/codebase-locator.md"),
-    ("agents/security-reviewer.md", ".claude/agents/security-reviewer.md"),
+    # Роли не пересекаются по ПОВОДУ, а не по предмету: senior-reviewer зовут,
+    # когда область незнакома и нужна карта; critical-reviewer — когда работа
+    # сделана и её надо судить; test-writer единственный пишет код.
+    #
+    # critical-reviewer, 02.09.2026 — слияние security-reviewer и plan-auditor.
+    # Повод у них был один и тот же («проверь сделанное»), а формат ответа
+    # разный, и звать приходилось двоих. Замер по стенограммам: security 5
+    # вызовов, plan-auditor 1, оба вида — «разбери на дефекты» и «сверь план с
+    # кодом». Слитый пишет подробный отчёт в docs/reports/ рядом с планом и
+    # возвращает выжимку: доклад, прочитанный один раз в уведомлении, через
+    # неделю не существует.
+    #
+    # codebase-locator убран 02.09.2026: шесть вызовов за всё время, все в день
+    # установки, дальше ноль. Нишу «широкий поиск по дереву» съел патч про
+    # батчи — главная сессия делает 3.35 символьных вызова за ход и треть ходов
+    # несёт четыре и больше, то есть ищет вширь сама и без чужого контекста.
+    # Что осталось от ниши, закрывает встроенный Explore.
+    ("agents/critical-reviewer.md", ".claude/agents/critical-reviewer.md"),
     ("agents/test-writer.md", ".claude/agents/test-writer.md"),
     ("skills/start/SKILL.md", ".claude/skills/start/SKILL.md"),
     ("serena/context-claude-code.yml", ".serena/contexts/claude-code.yml"),
@@ -652,6 +665,10 @@ def доклад(отчёт: Отчёт, есть: dict) -> None:
     for файл, чем in ПРАВИТЬ_РУКАМИ.items():
         print(f"  • {файл} — {чем}")
     print("  • Обёртка bin/claude → ~/.local/bin/claude (см. INSTALL.md, раздел «Обёртка»)")
+    print("  • Переходник bin/claude-trah → ~/.local/bin/claude-trah, и на него")
+    print("    настройку `claudeCode.claudeProcessWrapper` расширения VS Code.")
+    print("    Без него расширение запускает сборку МИМО обёртки: ни режима гарда,")
+    print("    ни потолка батча, ни брифа.")
 
     print("\nПРОВЕРИТЬ:")
     print("  python3 ~/.claude/hooks/guard-destructive.test.py   # провалов: 0")

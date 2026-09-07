@@ -79,12 +79,14 @@ def чекпоинт(каталог: str, session_id: str, возраст_мин
     спец.loader.exec_module(cp)
     путь = Path(cp.resolve_checkpoint(каталог, session_id))
     путь.parent.mkdir(parents=True, exist_ok=True)
-    когда = time.strftime("%Y-%m-%dT%H:%M:%S",
-                          time.localtime(time.time() - возраст_мин * 60))
     путь.write_text(json.dumps({
         "plan": "docs/plans/проба.md", "project": "проба",
-        "next": "дописать проверку", "at": когда}, ensure_ascii=False),
+        "next": "дописать проверку"}, ensure_ascii=False),
         encoding="utf-8")
+    # Свежесть — по mtime файла: с 30.08.2026 метку времени в JSON никто не
+    # пишет, её ставила модель по памяти и однажды промахнулась на три часа.
+    когда = time.time() - возраст_мин * 60
+    os.utime(путь, (когда, когда))
     return путь
 
 

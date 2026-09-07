@@ -81,6 +81,55 @@ def main() -> int:
     code, text = run("cat ~/.zshrc", mode="block")
     check("файл вне проекта — проходит", code == 0 and not text, text[:90])
 
+    # ── обходы, замеренные 02.09.2026 ────────────────────────────────────────
+    # Каждая форма проходила мимо гарда и выливала в контекст от 4 до 92 КБ.
+    # Замер: `/tmp/guard-leak-probe.py`, счёт по длине stdout самой команды.
+    # Повод посмотреть — changelog Claude Code 2.1.259: Anthropic чинили тот же
+    # класс дыр в своих `Read()`-правилах (файл значением опции, операнды
+    # `git`, составные команды).
+    ОБХОДЫ = [
+        ("git show из индекса",       "git show HEAD:README.md"),
+        ("git grep с операндом",      "git grep -n . -- README.md"),
+        ("git grep без пути",         "git grep TODO"),
+        ("git grep с -C в проект",    "git -C trah-setup grep TODO"),
+        ("git grep за общим -c",      "git -c core.pager=cat grep TODO"),
+        ("git diff --no-index",       "git diff --no-index /dev/null README.md"),
+        ("git blame целиком",         "git blame README.md"),
+        ("git cat-file -p",           "git cat-file -p HEAD:README.md"),
+        ("perl -pe как cat",          "perl -pe '' README.md"),
+        ("nl",                        "nl README.md"),
+        ("od -c",                     "od -c README.md"),
+        ("strings",                   "strings README.md"),
+        ("base64",                    "base64 README.md"),
+        ("hexdump",                   "hexdump -C README.md"),
+        ("dd if=",                    "dd if=README.md"),
+        ("вход через <",              "nl < README.md"),
+        ("путь по трубе в xargs",     "echo README.md | xargs cat"),
+    ]
+    for имя, команда in ОБХОДЫ:
+        code, text = run(команда, mode="block")
+        check(f"обход: {имя} — отказ", code == 2 and "BLOCKED" in text,
+              f"код={code} {text[:70]}")
+
+    # Соседи обходов, которые обязаны остаться законными: они печатают сводку,
+    # разницу или число, а не тело файла. Без этой половины список READERS
+    # разрастается до запрета работать.
+    ЗАКОННОЕ = [
+        ("git diff по файлу",         "git diff HEAD -- README.md"),
+        ("git show ревизии",          "git show HEAD --stat"),
+        ("git blame с диапазоном",    "git blame -L 10,20 README.md"),
+        ("git grep в чужом репо",     "git -C /tmp grep TODO"),
+        ("wc через перенаправление",  "wc -l < README.md"),
+        ("cut по чужому выводу",      "ps aux | cut -c1-50"),
+        ("ls проекта в head",         "ls trah-setup/ | head -5"),
+        ("dd из /dev/zero",           "dd if=/dev/zero of=/tmp/z bs=1 count=10"),
+        ("od по чужому файлу",        "od -c /etc/hostname"),
+    ]
+    for имя, команда in ЗАКОННОЕ:
+        code, text = run(команда, mode="block")
+        check(f"законно: {имя} — проходит", code == 0 and not text,
+              f"код={code} {text[:70]}")
+
     code, text = run("cp workspace-setup/global-brief.md ~/.claude/brief.md", mode="block")
     check("cp — не правка, проходит", code == 0 and not text, text[:90])
 

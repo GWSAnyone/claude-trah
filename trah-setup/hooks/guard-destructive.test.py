@@ -95,7 +95,19 @@ CASES = [
     ("rm -rf build/core", PASS),
     ("rm /tmp/x.json", PASS),
     ("bash tools/build-mod.sh core", PASS),
-    ('ssh -i "$KEY" "$VPS" "pkill -x csgomarket-bot"', PASS),
+    # 01.09.2026: было PASS. `pkill -f "exe/bot"` уложил всех ботов экосистемы,
+    # и владелец запретил pkill целиком — безопасной формы у него нет, число
+    # совпадений видно только после убийства. Штатная остановка вместо него.
+    ('ssh -i "$KEY" "$VPS" "pkill -x csgomarket-bot"', BLOCK),
+    ('pkill -f "exe/bot"', BLOCK),
+    ("pkill bot", BLOCK),
+    ("killall bot", BLOCK),
+    ("kill -9 12345", BLOCK),
+    ("kill -s SIGKILL 12345", BLOCK),
+    ("kill $(pgrep -f bot)", BLOCK),
+    ("pgrep -a bot", PASS),
+    ("kill 12345", PASS),
+    ("systemctl --user stop buyorderbot", PASS),
 
     # --- ключевое: УПОМИНАНИЕ команды, а не запуск ---
     ("grep -rn 'git reset --hard' docs/", PASS),

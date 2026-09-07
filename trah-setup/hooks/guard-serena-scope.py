@@ -9,6 +9,7 @@
 """
 
 import json
+import os
 import re
 import sys
 
@@ -66,10 +67,15 @@ def main() -> int:
     if any(is_scoped(tool_input.get(f)) for f in fields):
         return 0
 
+    # Корень называем по `cwd` вызова, а не строкой в тексте. До 30.08.2026 здесь
+    # стояло «the whole SyncedProjects root», и отказ, пришедший в сессии
+    # tausozavr, учил неверному факту о том, что именно просканирует Serena.
+    корень = os.path.basename(str(payload.get("cwd") or "").rstrip("/")) or "project"
+
     which = " or ".join(f"`{f}`" for f in fields)
     sys.stderr.write(
         f"BLOCKED: `{short}` was called with no search scope.\n\n"
-        f"Without {which} Serena scans the whole SyncedProjects root — that is slow "
+        f"Without {which} Serena scans the whole {корень} root — that is slow "
         f"and the result is almost always useless.\n\n"
         f"{HINT}"
     )

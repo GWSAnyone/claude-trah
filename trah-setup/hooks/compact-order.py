@@ -110,7 +110,8 @@ def main(аргументы: list[str]) -> int:
     cp = чекпоинт_модуль()
     cwd = os.getcwd()
     session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
-    данные = cp.load(cp.resolve_checkpoint(cwd, session_id))
+    путь_чекпоинта = cp.resolve_checkpoint(cwd, session_id)
+    данные = cp.load(путь_чекпоинта)
 
     if данные is None:
         sys.stderr.write(
@@ -120,14 +121,14 @@ def main(аргументы: list[str]) -> int:
             "этот скрипт снова.\n")
         return 1
 
-    if беда := cp.stale_reason(данные):
+    if беда := cp.stale_reason(путь_чекпоинта, данные):
         вид, минут = беда
         что = (f"чекпоинт протух на {минут} мин" if вид == "stale" else
-               f"метка чекпоинта на {минут} мин В БУДУЩЕМ — разошлись часы "
-               "машины или дата, выданная сессии, и судить о свежести нечем")
+               f"файл чекпоинта на {минут} мин В БУДУЩЕМ — разошлись часы "
+               "машины, и судить о свежести нечем")
         sys.stderr.write(
             f"Сжатие НЕ заказано: {что}.\n\n"
-            f"  записан: {данные.get('at')}\n"
+            f"  записан: {cp.written_at(путь_чекпоинта, данные)}\n"
             f"  план:    {данные.get('plan', '—')}\n\n"
             "С тех пор сделано многое, чего в плане нет. `/checkpoint`, потом "
             "сюда снова.\n")

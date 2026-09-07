@@ -8,12 +8,14 @@
   "note_второй_путь": "Через `||` добавлен запасной признак — объявленный в кадре `session_id`. Он не ослабление: выше по функции стоит проверка, которая роняет кадр, если объявленный id не совпал с настоящим. То есть эта ветка означает «отправитель знает id этой сессии», а id лежит в окружении потомков (`CLAUDE_CODE_SESSION_ID`). Ветка нужна потому, что вычисление `selfSent` на Linux зависит от флага, значение которого чтением бинаря не установлено; если родство не считается, работает вторая половина",
   "note_узость": "Белый список из одной команды. `/clear` намеренно НЕ разрешён: он стирает разговор целиком, и цена ошибки несравнима. Расширять — правкой этой же строки",
   "note_переезд_251": "Якорь переписан 29.08.2026 под 2.1.251. Имена сдвинулись целиком: `a`→`k` (текст кадра), `d`→`w`, `f`→`p`, `h`→`y`, `m`→`u` (тот самый `selfSent`). Форма 2.1.247 была `value:a,uuid:d,priority:f,origin:h,skipSlashCommands:!0,isMeta:!0}`. Закрывающая скобка из якоря УБРАНА намеренно: в 2.1.251 за `isMeta:!0` идёт ещё `skipAttachments:!0`, и якорь со скобкой не совпал бы. В 2.1.251 у кадра появился и `verifiedPeerProcStart` — проверка родства стала строже, нашей ветки это не касается",
+  "note_переезд_260": "Якорь переписан 04.09.2026 под 2.1.260. Сдвинулось ОДНО имя: текст сообщения `k` → `E`, а `k` теперь зовётся сам объект кадра. `w`, `p`, `y` и `u` (тот самый selfSent) остались как были — видно по соседству `{selfSent:u},...wAe(e.msg_id)&&{msg_id:e.msg_id}`, кадр по-прежнему `e`. Смысл правки не менялся",
+  "note_переезд_263": "Якорь переписан 07.09.2026 под 2.1.263. Снова сдвинулось ОДНО имя: приоритет `p` → `m`. `E`, `w`, `y` и `u` (selfSent) остались как были, кадр по-прежнему `e` — видно по соседству `verifiedPeerProcStart:i},...u&&{selfSent:u},...ive(e.msg_id)&&{msg_id:e.msg_id}`. Место то же: обработчик кадра в uds-messaging, из шести вхождений `skipSlashCommands:!0,isMeta:!0` в бинарнике наше единственное с `uuid:` и `origin:` в объекте. Смысл правки не менялся",
   "edits": [
     {
       "op": "replace",
-      "anchor": "value:k,uuid:w,priority:p,origin:y,skipSlashCommands:!0,isMeta:!0",
+      "anchor": "value:E,uuid:w,priority:m,origin:y,skipSlashCommands:!0,isMeta:!0",
       "count": 1,
-      "with": "value:k,uuid:w,priority:p,origin:y,skipSlashCommands:!((u===!0||typeof e.session_id===\"string\")&&typeof k===\"string\"&&(k===\"/compact\"||k.startsWith(\"/compact \"))),isMeta:!0"
+      "with": "value:E,uuid:w,priority:m,origin:y,skipSlashCommands:!((u===!0||typeof e.session_id===\"string\")&&typeof E===\"string\"&&(E===\"/compact\"||E.startsWith(\"/compact \"))),isMeta:!0"
     }
   ]
 }

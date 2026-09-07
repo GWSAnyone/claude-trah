@@ -14,9 +14,9 @@ description: |
 This is our own code, reviewed before it ships. The job is to find defects and
 hand the owner a list he can act on, with a way to check each item himself.
 
-The reading is delegated to `security-reviewer`. This skill is everything
-around it: what to point it at, what to do with what it says, and how to know a
-fix actually fixed.
+The reading is delegated to `critical-reviewer`, briefed to weight the security
+classes above the rest. This skill is everything around it: what to point it at,
+what to do with what it says, and how to know a fix actually fixed.
 
 ## 1. Scope it before you start
 
@@ -46,13 +46,17 @@ Say which of the three it failed.
 
 ## 3. Delegate the reading
 
-Call `security-reviewer` on the scope. Split by surface when the area is wide:
+Call `critical-reviewer` on the scope. Split by surface when the area is wide:
 handlers, auth, storage and configuration are independent tracks and belong to
 separate agents running at once.
 
 Brief each one with the threat model above, the boundary, and what is already
-known. An agent that does not know what is valuable reports everything at equal
-weight.
+known — and say explicitly that this is a security pass, so the security classes
+outrank performance and contract in its report. An agent that does not know what
+is valuable reports everything at equal weight.
+
+It writes its full report to `docs/reports/` and hands you back a digest. Open
+the file before triaging: the digest is a table of contents, not the findings.
 
 ## 4. Triage — this part is yours, not the agent's
 
