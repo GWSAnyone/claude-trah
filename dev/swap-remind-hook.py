@@ -43,7 +43,7 @@ import sys
 import time
 from pathlib import Path
 
-КОМПЛЕКТ = Path(__file__).resolve().parent.parent
+КОМПЛЕКТ = Path(__file__).resolve().parent.parent / "trah-setup"
 ОТМЕТКА = time.strftime("%Y%m%d-%H%M%S")
 ПРОКЛАДКА = "serena-remind-shim.py"
 

@@ -36,11 +36,37 @@ MARK = "GWS-CLAUDE-WRAPPER"
 
 LINK = os.environ.get("GWS_CLAUDE_WRAPPER_LINK") \
     or os.path.expanduser("~/.local/bin/claude")
-# Запасной путь к комплекту — предположение про ЭТУ машину, и на чужой оно
-# неверно. Поэтому первым делом спрашивается переменная: у того, кто склонировал
-# репозиторий в другое место, работает она, а не догадка.
+
+
+def _kit_from_note() -> str:
+    """Путь к комплекту из памятки, которую пишет установщик.
+
+    Хук живёт в `~/.claude/hooks`, то есть вдали от репозитория, а восстановить
+    обёртку может только из него. Догадка про `~/Ledevia/<что-то>` работала
+    ровно на одной машине и врала на всякой другой; памятка `trah-kit-path`
+    говорит правду на любой, потому что её пишет тот, кто ставил.
+    """
+    try:
+        with open(os.path.expanduser("~/.claude/trah-kit-path"),
+                  encoding="utf-8") as f:
+            root = f.read().strip()
+    except OSError:
+        return ""
+    candidate = os.path.join(root, "bin", "claude") if root else ""
+    return candidate if candidate and os.path.isfile(candidate) else ""
+
+
+def _kit_beside() -> str:
+    """Комплект рядом с хуком: так бывает, когда хук зовут прямо из репозитория."""
+    candidate = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin", "claude")
+    return candidate if os.path.isfile(candidate) else ""
+
+
+# Порядок: явное указание переменной (тесты и ручной обход) → памятка от
+# установщика → комплект рядом с хуком. Догадки про чужой дом здесь больше нет.
 KIT = os.environ.get("GWS_CLAUDE_WRAPPER_KIT") \
-    or os.path.expanduser("~/Ledevia/tausozavr/trah-setup/bin/claude")
+    or _kit_from_note() or _kit_beside()
 VERSIONS_DIR = os.environ.get("GWS_CLAUDE_WRAPPER_VERSIONS") \
     or os.path.expanduser("~/.local/share/claude/versions")
 PIN_FILE = os.environ.get("GWS_CLAUDE_WRAPPER_PIN") \
@@ -111,6 +137,25 @@ def install() -> str | None:
     if not is_wrapper(KIT):
         return f"the claude wrapper is gone and the kit is unavailable or substituted: {KIT}"
 
+    # Ничего не затирать молча — правило комплекта, и здесь оно про чужой файл на
+    # точке входа: `os.replace` ниже уничтожает его без следа.
+    #
+    # Симлинк не в счёт. По этому пути его кладёт штатный установщик Claude Code
+    # и пересоздаёт при КАЖДОМ обновлении — копия такого была бы мусором раз в
+    # неделю, а восстанавливается он одной строкой `ln -s`.
+    #
+    # Копия делается один раз: второй заход перезаписал бы настоящий оригинал
+    # нашей же обёрткой, и спасать было бы уже нечего.
+    saved = None
+    if os.path.isfile(LINK) and not os.path.islink(LINK):
+        candidate = f"{LINK}.before-trah"
+        try:
+            if not os.path.exists(candidate):
+                shutil.copy2(LINK, candidate)
+                saved = candidate
+        except OSError:
+            saved = None
+
     try:
         os.makedirs(os.path.dirname(LINK), exist_ok=True)
         tmp = f"{LINK}.part.{os.getpid()}"
@@ -120,7 +165,8 @@ def install() -> str | None:
     except OSError as e:
         return f"the claude wrapper could not be restored: {e}"
 
-    return f"The claude wrapper was restored at {LINK} from the kit."
+    return (f"The claude wrapper was restored at {LINK} from the kit."
+            + (f" The file that was there is kept as {saved}." if saved else ""))
 
 
 def main() -> int:

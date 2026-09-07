@@ -18,8 +18,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-КОМПЛЕКТ = Path(__file__).resolve().parent.parent
-СКРИПТ = str(КОМПЛЕКТ / "bin/check-workspace-sync.py")
+КОМПЛЕКТ = Path(__file__).resolve().parent.parent / "trah-setup"
+СКРИПТ = str(Path(__file__).resolve().parent / "check-workspace-sync.py")
 
 # Файлы, вокруг которых всё и затевалось: расхождение в них жило незамеченным.
 КОНТЕКСТ = ("serena/context-claude-code.yml", ".serena/contexts/claude-code.yml")

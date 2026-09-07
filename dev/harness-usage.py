@@ -197,8 +197,6 @@ def main():
     report(live, f"ЖИВЫЕ сессии (реплик человека ≥ {a.min_turns})")
     report(oneshot, "одноразовые прогоны (реплик человека меньше)")
 
-    zavr = [r for r in live if "tausozavr" in (r["project"] or "")]
-    report(zavr, "живые сессии в tausozavr")
 
     byproj = collections.Counter(r["project"] for r in live)
     print("\n=== живые сессии по проектам (топ 10) ===")

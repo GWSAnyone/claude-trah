@@ -59,7 +59,7 @@ Which ecosystem to activate, when activation is needed:
 | any GWS bot/service (`DmTrading`, `CSFParser`, `GWS_Ltd`, …) | **`SyncedProjects`** |
 | `~/Ledevia/Projects` (CLWA and the rest) | the `Projects` root |
 | `asynchronus` | the `asynchronus` root |
-| `~/Ledevia/tausozavr` | `tausozavr` |
+| `~/Ledevia/claude-trah` | `claude-trah` |
 
 The rule is strict: the root gets activated, not a sub-project. Not "for
 convenience", not because the tool itself suggested it, not temporarily. Saw a

@@ -44,14 +44,37 @@ def положить(каталог: Path, имя: str, тело: str) -> None:
     (каталог / имя).write_text(ПОДСТАВНОЙ.replace("{тело}", тело), encoding="utf-8")
 
 
+# Образцы подставных модулей — те же и в том же порядке, что в реестре
+# комплекта: проверки опираются и на порядок (сторож раньше подсказчика), и на
+# отбор по инструменту.
+ОБРАЗЦЫ = (
+    ("guard-destructive.py", "Bash"),
+    ("guard-sleep.py", "Bash|PowerShell"),
+    ("guard-serena-scope.py", "mcp__serena__.*"),
+    ("nudge-serena.py", "Bash|PowerShell"),
+    ("serena-remind-shim.py", ".*"),
+)
+
+
+def реестр(каталог: Path) -> None:
+    """Реестр по тому, что лежит в каталоге сейчас. Подставные модули по ходу
+    проверок появляются и исчезают, а диспетчер читает список из файла — значит
+    файл надо держать в согласии с диском."""
+    записи = [{"файл": и, "образец": о} for и, о in ОБРАЗЦЫ if (каталог / и).exists()]
+    (каталог / "modules.json").write_text(
+        json.dumps({"модули": записи}, ensure_ascii=False), encoding="utf-8")
+
+
 def прогнать(каталог, инструмент="Bash", команда="ls -la", raw=None,
              окружение=None):
     полезное = raw if raw is not None else json.dumps(
         {"tool_name": инструмент, "cwd": РЕПО,
          "tool_input": {"command": команда}}, ensure_ascii=False)
+    реестр(Path(каталог))
     env = dict(os.environ, PRETOOLUSE_DIR=str(каталог))
     env.pop("PRETOOLUSE", None)
     env.pop("PRETOOLUSE_ONLY", None)
+    env.pop("TRAH_MODE", None)
     env.update(окружение or {})
     р = subprocess.run([sys.executable, ХУК], input=полезное,
                        capture_output=True, text=True, env=env)
@@ -189,23 +212,76 @@ def main() -> int:
           р.returncode == 0 and not р.stdout.strip(),
           f"{р.returncode} {р.stdout[:80]}")
 
-    # ── список модулей сверен с диском ──────────────────────────────────────
+    # ── реестр комплекта сверен с диском ────────────────────────────────────
     #
     # Диспетчер молчит о пропавшем модуле НАМЕРЕННО: сторож, снесённый вместе с
     # переездом на другую машину, не должен ронять каждый вызов Bash. Цена этой
     # мягкости — что опечатка в имени и снесённый файл выглядят одинаково, то
-    # есть никак. Здесь и стоит проверка: в НАШЕМ дереве все семь на месте.
+    # есть никак. Здесь и стоит проверка: в НАШЕМ реестре все файлы на месте.
     #
-    # Два модуля живут в соседнем комплекте `workspace-setup` и ставятся
-    # оттуда (`install-kit.СОСЕД`), поэтому ищем в обоих каталогах.
-    сосед = Path(РЕПО) / "workspace-setup" / "hooks"
+    # Чужих модулей в своём реестре не бывает по устройству: для них есть
+    # `modules.local.json`, и комплект его не пишет.
     спец_ = importlib.util.spec_from_file_location("pretooluse", ХУК)
     модуль = importlib.util.module_from_spec(спец_)
     спец_.loader.exec_module(модуль)
-    check("модулей в списке семь", len(модуль.МОДУЛИ) == 7, f"={len(модуль.МОДУЛИ)}")
-    пропавшие = [имя for имя, _ in модуль.МОДУЛИ
-                 if not (свои / имя).exists() and not (сосед / имя).exists()]
-    check("каждый модуль из списка лежит на диске", not пропавшие, f"={пропавшие}")
+    свой = json.loads((свои / "modules.json").read_text(encoding="utf-8"))
+    записи = свой["модули"]
+    check("в реестре комплекта пять модулей", len(записи) == 5, f"={len(записи)}")
+    пропавшие = [з["файл"] for з in записи if not (свои / з["файл"]).exists()]
+    check("каждый модуль реестра лежит на диске", not пропавшие, f"={пропавшие}")
+    чужие = [з["файл"] for з in записи if з.get("требует")]
+    check("свой реестр не требует чужих утилит", not чужие, f"={чужие}")
+
+    # ── чужой реестр: читается обычным claude, но не режимом `trah` ──────────
+    #
+    # Ради этого реестр и заводился. Сессия режима не подчиняется правилам
+    # продукта, с которым она не работает, — а вне режима те же правила стоят.
+    with tempfile.TemporaryDirectory() as tmp:
+        к = Path(tmp)
+        положить(к, "guard-destructive.py", 'print("СВОЙ"); return 0')
+        реестр(к)
+        (к / "guard-chuzhoy.py").write_text(
+            ПОДСТАВНОЙ.replace("{тело}", 'print("ЧУЖОЙ"); return 0'),
+            encoding="utf-8")
+        (к / "modules.local.json").write_text(json.dumps(
+            {"модули": [{"файл": "guard-chuzhoy.py", "образец": "Bash"}]},
+            ensure_ascii=False), encoding="utf-8")
+
+        env = dict(os.environ, PRETOOLUSE_DIR=str(к))
+        env.pop("PRETOOLUSE", None)
+        env.pop("PRETOOLUSE_ONLY", None)
+        полезное = json.dumps({"tool_name": "Bash", "cwd": РЕПО,
+                               "tool_input": {"command": "ls"}})
+
+        env.pop("TRAH_MODE", None)
+        р = subprocess.run([sys.executable, ХУК], input=полезное,
+                           capture_output=True, text=True, env=env)
+        check("вне режима чужой модуль зовётся",
+              "ЧУЖОЙ" in р.stdout and "СВОЙ" in р.stdout, repr(р.stdout[:100]))
+
+        р = subprocess.run([sys.executable, ХУК], input=полезное,
+                           capture_output=True, text=True,
+                           env=dict(env, TRAH_MODE="1"))
+        check("в режиме `trah` чужой модуль не зовётся",
+              "ЧУЖОЙ" not in р.stdout and "СВОЙ" in р.stdout, repr(р.stdout[:100]))
+
+        # Утилита, которой нет: модуль объявлен, но не зовётся.
+        (к / "modules.local.json").write_text(json.dumps(
+            {"модули": [{"файл": "guard-chuzhoy.py", "образец": "Bash",
+                         "требует": ["этой-утилиты-нет"]}]},
+            ensure_ascii=False), encoding="utf-8")
+        р = subprocess.run([sys.executable, ХУК], input=полезное,
+                           capture_output=True, text=True, env=env)
+        check("модуль без своей утилиты не зовётся", "ЧУЖОЙ" not in р.stdout,
+              repr(р.stdout[:100]))
+
+        # Битый реестр не роняет вызов.
+        (к / "modules.local.json").write_text("{ это не json", encoding="utf-8")
+        р = subprocess.run([sys.executable, ХУК], input=полезное,
+                           capture_output=True, text=True, env=env)
+        check("битый реестр не роняет вызов",
+              р.returncode == 0 and "СВОЙ" in р.stdout,
+              f"{р.returncode} {р.stdout[:80]}")
 
     print(f"всего: {всего}   провалов: {провалов}")
     return 1 if провалов else 0

@@ -33,10 +33,10 @@ from pathlib import Path
 
 КОРПУС = Path(os.environ.get(
     "TWEAKCC_PROMPTS", Path.home() / ".local/share/tweakcc-fixed/data/prompts"))
-КУСКИ = Path(__file__).resolve().parent.parent / "fragments"
+КУСКИ = Path(__file__).resolve().parent.parent / "trah-setup" / "fragments"
 # Прицел один на весь комплект и лежит в version.txt: номер, вписанный сюда
 # вторым экземпляром, разъезжается с настоящим молча.
-ВЕРСИЯ = (Path(__file__).resolve().parent.parent / "version.txt").read_text().strip()
+ВЕРСИЯ = (Path(__file__).resolve().parent.parent / "trah-setup" / "version.txt").read_text().strip()
 
 
 def корпус(версия: str) -> list[dict]:

@@ -23,7 +23,7 @@ HOOK = os.path.join(HERE, "restore-claude-wrapper.py")
 # в ~/.claude/hooks, по обычному пути экосистемы
 KIT = os.path.join(os.path.dirname(HERE), "bin", "claude")
 if not os.path.isfile(KIT):
-    KIT = os.path.expanduser("~/Ledevia/tausozavr/trah-setup/bin/claude")
+    KIT = os.path.expanduser("~/Ledevia/claude-trah/trah-setup/bin/claude")
 
 FAKE = "#!/usr/bin/env bash\nfor a in \"$@\"; do printf '%s\\n' \"$a\"; done\n"
 
@@ -119,9 +119,33 @@ def main() -> int:
         check(not os.path.exists(link), "и ничего не подсовывается вместо обёртки")
 
         # ── чужой файл на месте точки входа (не симлинк, не наша обёртка) ────
-        write(link, "#!/bin/sh\necho чужой\n", 0o755)
+        #
+        # Замена — правильное поведение, а вот молчаливое уничтожение — нет:
+        # `os.replace` не оставляет от чужого файла ничего. Копия делается один
+        # раз, иначе второй заход перезапишет оригинал нашей же обёрткой.
+        чужой = "#!/bin/sh\necho чужой\n"
+        write(link, чужой, 0o755)
         proc = run_hook(home, link, versions)
         check(is_wrapper(link), "чужой файл на точке входа заменяется обёрткой")
+        спасён = link + ".before-trah"
+        check(os.path.isfile(спасён), "и сохраняется рядом, а не уничтожается")
+        check(open(спасён, encoding="utf-8").read() == чужой,
+              "сохранено именно его содержимое")
+        check(".before-trah" in proc.stdout, "о спасённом файле сказано",
+              proc.stdout[:200])
+
+        os.remove(link)
+        run_hook(home, link, versions)
+        check(open(спасён, encoding="utf-8").read() == чужой,
+              "повторный заход не затирает спасённое своей обёрткой")
+        os.remove(спасён)
+
+        # Симлинк штатного установщика в сторону не копируется: он приезжает
+        # заново при каждом обновлении Claude Code, и копии были бы мусором.
+        os.remove(link)
+        os.symlink(real, link)
+        run_hook(home, link, versions)
+        check(not os.path.exists(спасён), "штатный симлинк копией не сопровождается")
 
         # ── свалка версий: установщик их больше не убирает ───────────────────
         for name in ("2.1.233", "2.1.234", "2.1.235", "2.1.237", "2.1.238"):

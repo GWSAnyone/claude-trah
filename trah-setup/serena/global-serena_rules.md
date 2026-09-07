@@ -1,7 +1,7 @@
 # Serena Working Rules — moved into the system prompt
 
 The rules themselves are no longer here. They live in the global brief
-`~/.claude/brief.md` (kit source: `tausozavr/workspace-setup/global-brief.md`),
+`~/.claude/brief.md` (kit source: `claude-trah/trah-setup/fragments/trah-serena-*.md`),
 section **"Serena and sequential-thinking — the working rules"**, and the wrapper
 `~/.local/bin/claude` feeds that file to every session as the system prompt.
 
