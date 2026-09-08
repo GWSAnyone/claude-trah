@@ -148,6 +148,7 @@ YAML, TOML внутри процесса; `.go`, `.js`, `.sh` — внешним
 | Понять, как оно устроено | **[MECHANICS.md](MECHANICS.md)** — якоря, куски, сборка, обёртка |
 | Увидеть, ради чего это | **[WORKSPACE.md](WORKSPACE.md)** — как выглядит рабочий каталог, где комплект живёт каждый день |
 | Карта комплекта и что где | [trah-setup/README.md](trah-setup/README.md) |
+| Поставить себе расширение VS Code | [claude-code-vsc/README.md](claude-code-vsc/README.md) — наш форк официального расширения |
 
 ## Состав
 
@@ -161,6 +162,7 @@ YAML, TOML внутри процесса; `.go`, `.js`, `.sh` — внешним
 | `trah-setup/skills/` | `checkpoint`, `start`, `frontend-design`, `browser`, `security` |
 | `trah-setup/serena/` | контекст и память Serena |
 | `trah-setup/project-template/` | проектный скелет: `CLAUDE.md`-указатель, скелет брифа, правило раскладки `docs/`, два `README` |
+| `claude-code-vsc/` | форк расширения Claude Code для VS Code: полоса расхода, ленты подагентов, задачи в фон. [Как поставить](claude-code-vsc/README.md) |
 | `trah-setup/settings-hooks.json` | проводка хуков, запреты, переменные окружения |
 | `trah-setup/hooks/modules.json` | реестр модулей диспетчера: что зовётся перед вызовом инструмента |
 | `trah` | одна дверь: поставить, обновить, посмотреть, проверить |
