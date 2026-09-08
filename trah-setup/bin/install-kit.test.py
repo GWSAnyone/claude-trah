@@ -247,5 +247,141 @@ check("чужие ключи на месте", вышло.get("model") == "opus"
 check("а недостающий всё равно дописан",
       вышло.get("statusLine") == ждём.get("statusLine"))
 
+# --- чужая проводка хуков СЛИВАЕТСЯ, а не отбрасывается ---------------------
+#
+# Заведено 08.09.2026. Прежнее поведение — «своя проводка, не трогаю» — ставило
+# человека перед выбором из двух плохих: комплект без хуков либо свои хуки под
+# нож. У человека может быть собственная система сжатия или ведения журнала, и
+# она обязана пережить установку.
+чужая = {
+    "PreCompact": [{"matcher": "manual",
+                    "hooks": [{"type": "command", "command": "/bin/echo мой-сжиматель"}]}],
+    "Stop": [{"hooks": [{"type": "command", "command": "/bin/echo мой-журнал"}]}],
+}
+вышло, руками, ждём = настройки_после({"hooks": чужая})
+все_команды = [в.get("command")
+               for блоки in вышло["hooks"].values()
+               for б in блоки for в in (б.get("hooks") or [])]
+check("чужой хук сжатия пережил установку",
+      "/bin/echo мой-сжиматель" in все_команды,
+      f"команд={len(все_команды)}")
+check("чужой хук журнала пережил установку",
+      "/bin/echo мой-журнал" in все_команды)
+check("наши хуки при этом доехали",
+      any("checkpoint.py" in (к or "") for к in все_команды),
+      f"={[к for к in все_команды if к][:3]}")
+check("событий стало не меньше, чем было у хозяина",
+      set(чужая) <= set(вышло["hooks"]))
+check("в докладе сказано, что слито, а не отброшено",
+      any("СЛИЛ" in с for с in руками), f"={руками}")
+
+# Слияние идемпотентно: второй прогон не удваивает наши вызовы.
+#
+# Дом ОДИН на оба прогона, и это не деталь оформления. В командах хуков стоит
+# `@HOME@`, установщик подставляет туда настоящий путь, и два разных временных
+# дома дают две разные команды — они не схлопнутся, и проверка провалится на
+# ровном месте. Первая редакция этой проверки так и провалилась: 16 → 29.
+def проводка_дважды() -> tuple[int, int]:
+    д = Path(tempfile.mkdtemp())
+    (д / ".claude").mkdir()
+    (д / ".claude/settings.json").write_text(json.dumps({"hooks": чужая}), encoding="utf-8")
+    утилиты = {у: "/usr/bin/" + у for у in ik.ТРЕБУЕТ.values()}
+    счёт = []
+    for _ in range(2):
+        о = ik.Отчёт(False, д)
+        with io.StringIO() as глушь, contextlib.redirect_stdout(глушь):
+            ik.проводка(о, д, утилиты, заменять=False)
+        д_настройки = json.loads((д / ".claude/settings.json").read_text(encoding="utf-8"))
+        счёт.append(sum(len(б.get("hooks") or [])
+                        for блоки in д_настройки["hooks"].values() for б in блоки))
+    return счёт[0], счёт[1]
+
+
+раз, два = проводка_дважды()
+check("повторная установка не удваивает вызовы", раз == два,
+      f"после первой {раз}, после второй {два}")
+
+# --- чужой файл по нашему пути не затирается --------------------------------
+def дом_с_чужим(тело: str) -> Path:
+    д = Path(tempfile.mkdtemp())
+    цель = д / ".claude/skills/checkpoint/SKILL.md"
+    цель.parent.mkdir(parents=True)
+    цель.write_text(тело, encoding="utf-8")
+    (д / ".claude.json").write_text(json.dumps({"mcpServers": {"playwright": {}}}),
+                                    encoding="utf-8")
+    return д
+
+
+чужой_текст = "# мой собственный чекпоинт\nработает не так, как ваш\n"
+д = дом_с_чужим(чужой_текст)
+отчёт = ik.Отчёт(False, д, заменять_чужое=False)
+with io.StringIO() as глушь, contextlib.redirect_stdout(глушь):
+    ik.поставить_общее(отчёт, д, {})
+цель = д / ".claude/skills/checkpoint/SKILL.md"
+check("чужой файл остался дословно прежним",
+      цель.read_text(encoding="utf-8") == чужой_текст)
+check("столкновение названо", any("checkpoint" in с for с in отчёт.столкновения),
+      f"={отчёт.столкновения}")
+check("и вынесено человеку в «руками»",
+      any("файл хозяина" in с for с in отчёт.руками))
+check("остальное при этом поставлено",
+      any("agents/senior-reviewer.md" in с for с in отчёт.сделано))
+
+# С разрешения — заменяем, но копия обязана остаться.
+д = дом_с_чужим(чужой_текст)
+отчёт = ik.Отчёт(False, д, заменять_чужое=True)
+with io.StringIO() as глушь, contextlib.redirect_stdout(глушь):
+    ik.поставить_общее(отчёт, д, {})
+цель = д / ".claude/skills/checkpoint/SKILL.md"
+копии = list(цель.parent.glob("SKILL.md.bak-*"))
+check("с --replace-theirs файл заменён", цель.read_text(encoding="utf-8") != чужой_текст)
+check("но прежнее содержимое сохранено копией", len(копии) == 1, f"копий={len(копии)}")
+check("копия дословно равна тому, что было",
+      копии and копии[0].read_text(encoding="utf-8") == чужой_текст)
+
+# --- памятка: следующий запуск отличит своё от чужого -----------------------
+д = Path(tempfile.mkdtemp())
+(д / ".claude").mkdir()
+отчёт = ik.Отчёт(False, д)
+with io.StringIO() as глушь, contextlib.redirect_stdout(глушь):
+    ik.поставить_общее(отчёт, д, {})
+отчёт.записать_памятку()
+памятка = json.loads((д / ".claude/.trah-manifest.json").read_text(encoding="utf-8"))
+check("памятка написана", памятка.get("версия") == 1)
+check("в памятке есть то, что положили",
+      ".claude/agents/senior-reviewer.md" in памятка["файлы"],
+      f"записей={len(памятка['файлы'])}")
+
+# Правим наш же файл и ставим снова: он НАШ, значит обновляется, а не считается
+# чужим. Проверка ловит обратную ошибку — осторожность, доведённую до того, что
+# комплект перестаёт обновлять сам себя.
+наш = д / ".claude/agents/senior-reviewer.md"
+наш.write_text("правлено человеком\n", encoding="utf-8")
+отчёт2 = ik.Отчёт(False, д)
+with io.StringIO() as глушь, contextlib.redirect_stdout(глушь):
+    ik.поставить_общее(отчёт2, д, {})
+check("свой файл обновляется без спроса",
+      наш.read_text(encoding="utf-8") != "правлено человеком\n")
+check("и правка человека сохранена копией",
+      any(п.read_text(encoding="utf-8") == "правлено человеком\n"
+          for п in наш.parent.glob("senior-reviewer.md.bak-*")))
+check("своё не попало в столкновения", not отчёт2.столкновения,
+      f"={отчёт2.столкновения}")
+
+# --- settings.local.json тоже копируется перед записью ----------------------
+д = Path(tempfile.mkdtemp())
+(д / ".claude").mkdir()
+было_текстом = json.dumps({"чужой": "ключ"}, ensure_ascii=False)
+(д / ".claude/settings.local.json").write_text(было_текстом, encoding="utf-8")
+отчёт = ik.Отчёт(False, д)
+with io.StringIO() as глушь, contextlib.redirect_stdout(глушь):
+    ik.включить_стиль(отчёт, д)
+копии = list((д / ".claude").glob("settings.local.json.bak-*"))
+check("перед правкой settings.local.json сделана копия", len(копии) == 1)
+check("копия дословна", копии and копии[0].read_text(encoding="utf-8") == было_текстом)
+check("чужой ключ на месте после правки",
+      json.loads((д / ".claude/settings.local.json").read_text(encoding="utf-8"))
+      .get("чужой") == "ключ")
+
 print(f"  {всего - провалов}/{всего} проверок прошло")
 sys.exit(1 if провалов else 0)

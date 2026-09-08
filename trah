@@ -4,6 +4,8 @@
     ./trah                  поставить или обновить всё, что нужно этой машине
     ./trah --check          ничего не записывать, показать что изменилось бы
     ./trah status           что стоит: версия, сборка, комплект, обёртка
+    ./trah inventory        опись чужой машины: что уже есть и с чем столкнёмся
+    ./trah project ПУТЬ     проектный уровень: скелет брифа, правил и docs/
     ./trah tests            все наборы проверок комплекта
     ./trah --version 2.1.263    целиться в эту версию, а не в новейшую
 
@@ -201,16 +203,34 @@ def main() -> int:
         description="поставить или обновить `claude trah`",
         formatter_class=argparse.RawDescriptionHelpFormatter, epilog=__doc__)
     р.add_argument("команда", nargs="?", default="all",
-                   choices=["all", "status", "tests"],
+                   choices=["all", "status", "tests", "inventory", "project"],
                    help="без аргумента — поставить или обновить всё")
     р.add_argument("--check", action="store_true",
                    help="ничего не записывать, показать что изменилось бы")
     р.add_argument("--version", dest="версия",
                    help="целиться в эту версию Claude Code, а не в новейшую")
-    а = р.parse_args()
+    # `parse_known_args`, а не `parse_args`: у `project` есть свой аргумент —
+    # каталог, — и он принадлежит не этой двери, а инструменту за ней.
+    # Разбирать чужие аргументы здесь значило бы держать их описание в двух
+    # местах.
+    а, лишнее = р.parse_known_args()
+    if лишнее and а.команда != "project":
+        р.error(f"unrecognized arguments: {' '.join(лишнее)}")
 
     if а.команда == "status":
         return status()
+    if а.команда == "project":
+        # Проектный уровень: скелет в рабочем каталоге. Существующее не
+        # трогается; без --write только показывает.
+        return subprocess.run(
+            [sys.executable, str(КОМПЛЕКТ / "bin/init-project.py"), *sys.argv[2:]],
+            cwd=КОРЕНЬ).returncode
+    if а.команда == "inventory":
+        # Опись стоит ПЕРЕД установкой, а не после: она отвечает на вопрос
+        # «чьё здесь что» и ничего не пишет на диск.
+        return subprocess.run(
+            [sys.executable, str(КОМПЛЕКТ / "bin/inventory.py"), *sys.argv[2:]],
+            cwd=КОРЕНЬ).returncode
     if а.команда == "tests":
         return subprocess.run(
             [sys.executable, str(КОМПЛЕКТ / "bin/trah.py"), "tests"],
