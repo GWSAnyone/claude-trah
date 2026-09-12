@@ -81,7 +81,7 @@ YAML, TOML внутри процесса, `.go`/`.js`/`.sh` внешними р�
 | `skills/` | `checkpoint`, `start`, `frontend-design`, `browser`, `security` |
 | `serena/` | контекст и промпты Серены, конвенция памяти |
 | `output-styles/`, `rules/` | стиль вывода, заглушка правил |
-| `trah-brief.md` | собранный бриф (18 616 байт) — уезжает в `~/.claude/brief.md` |
+| `trah-brief.md` | собранный бриф (19 486 байт) — уезжает в `~/.claude/brief.md` |
 | `settings-hooks.json` | проводка хуков, запреты, переменные, строка состояния, срок кеша |
 | `hooks/modules.json` | реестр модулей диспетчера: кого звать на `PreToolUse` |
 

@@ -117,10 +117,24 @@ minutes in the future, the guard read a timestamp it could not trust and refused
 a compaction ordered seconds after the state had honestly been written. An `at`
 left over in an older pointer is still read, but only when mtime cannot be.
 
-## 5. Tell the owner
+## 5. Tell the owner, then order the compaction yourself
 
 One or two sentences: what was recorded, where, where we continue from. Then
-`/compact` is safe.
+order it — do not hand the keyboard back:
+
+```bash
+python3 ~/.claude/hooks/compact-order.py
+```
+
+It checks the record is fresh, refuses if it is not, and otherwise fires at the
+end of this turn, after your reply. Summary instructions come from the
+`PreCompact` hook — do not repeat them. Afterwards a message arrives naming the
+plan and the next action, and the work carries on by itself.
+
+**«Наберите /compact» is not an answer.** The command exists for you, and a
+reply that ends by asking the owner to press it leaves the work stopped until he
+looks. Withhold the order only when he asked for the record alone, or said he
+wants the conversation kept as it is — and then say which of the two it was.
 
 ## What the guard does
 
@@ -130,6 +144,10 @@ checkpoint or with one older than half an hour; `PostCompact` files the summary;
 
 - **Only manual compaction is guarded.** Automatic compaction at the window
   ceiling is never blocked and asks for nothing — record state in advance.
+- **A compaction the owner pressed does not resume the work.** `compact-continue`
+  answers only to the mark `compact-order.py` leaves, and that is deliberate: a
+  human at the keyboard may have meant to interrupt you and set another task.
+  So a `/compact` you asked for costs a stopped session; one you ordered does not.
 - **The text you send after `/compact` is the only channel into the summary.**
 - Compaction does not restart the session, but the conversation is gone — write
   as if for a stranger.

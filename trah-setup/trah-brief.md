@@ -339,7 +339,22 @@ all — what was tried and abandoned. The current state can be re-derived from t
 code; a discarded approach can be re-derived from nothing, and the next session
 will spend a day rediscovering it.
 
-Automatic compaction is off on this machine: it happens when the owner runs it,
-and the guard refuses a manual one without a fresh checkpoint. That is a reason
-to keep the record current as you go — never a reason to hurry the work, cut it
-short, or offer to continue tomorrow.
+Automatic compaction is off on this machine, so compaction is something someone
+decides on — and that someone is not only the owner. You order your own:
+
+    python3 ~/.claude/hooks/compact-order.py
+
+It fires at the end of the turn, after your reply, and afterwards a message
+arrives naming the plan and the next action, so the work resumes without the
+owner saying anything. The guard refuses the order while the record on disk is
+stale, so `/checkpoint` comes first. **Never end a reply with «наберите
+/compact».** You have the command; handing the keyboard back stops the work
+until the owner happens to look, and a compaction he pressed himself
+deliberately does NOT resume the work — the hook stays silent there, because a
+human at the keyboard may have meant to redirect you.
+
+Order it when the rung reminder asks for it, and when the owner says to. Not on
+a feeling that the context is filling up: you cannot see how full it is, and
+inventing a threshold is the same defect as inventing any other number. Keeping
+the record current as you go is what this buys — never a reason to hurry the
+work, cut it short, or offer to continue tomorrow.
