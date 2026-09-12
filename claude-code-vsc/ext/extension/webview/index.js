@@ -184411,15 +184411,15 @@ class yQ {
   // форк: «сессия уже начата, заведи новую вот в этом каталоге»
   forkNewSessionRequested = new z9();
   // форк: разбивка расхода по ходам, циклам, отрезкам и сессии
-  forkUsage = e1(forkEmptyUsage());
+  forkUsage = t1(forkEmptyUsage());
   forkFoldPending = !1;
   forkLastMessageId = void 0;
   forkTurnPending = !1;
   // форк: чью ленту показываем. null — свою, иначе id вызова Agent.
-  forkFocus = e1(null);
+  forkFocus = t1(null);
   // форк: расход подагентов. Ключ — id вызова Agent, значение — вид
   // forkEmptyAgentUsage. В счёт сессии эта работа не входит вовсе.
-  forkAgents = e1(new Map());
+  forkAgents = t1(new Map());
   awsAuthInProgress;
   lastSentSelection;
   pendingCompactMessage;
