@@ -2,7 +2,7 @@
   "name": "claude-code",
   "displayName": "Claude Code for VS Code",
   "description": "Claude Code for VS Code: Harness the power of Claude Code without leaving your IDE",
-  "version": "2.1.260",
+  "version": "2.1.269",
   "publisher": "Anthropic",
   "license": "© Anthropic PBC. All rights reserved. Use is subject to the Legal Agreements outlined here: https://code.claude.com/docs/en/legal-and-compliance.",
   "bugs": {
@@ -137,6 +137,26 @@
           "default": false,
           "description": "Hide the onboarding checklist in Claude Code."
         },
+        "claudeCode.archiveInactiveSessions": {
+          "type": "number",
+          "enum": [
+            0,
+            1,
+            2,
+            7,
+            14
+          ],
+          "enumItemLabels": [
+            "Never",
+            "1 day",
+            "2 days",
+            "7 days",
+            "14 days"
+          ],
+          "default": 14,
+          "scope": "application",
+          "description": "Archive a session after this long with no activity. Sessions that are open, running, waiting for input, or unread are never archived automatically."
+        },
         "claudeCode.usePythonEnvironment": {
           "type": "boolean",
           "default": true,
@@ -211,6 +231,10 @@
       {
         "command": "claude-vscode.focus",
         "title": "Claude Code: Focus input"
+      },
+      {
+        "command": "claude-vscode.focusLastMessage",
+        "title": "Claude Code: Focus last message"
       },
       {
         "command": "claude-vscode.blur",
@@ -454,39 +478,7 @@
       }
     ],
     "menus": {
-      "editor/title/context": [
-        {
-          "command": "claude-vscode.renameSessionTab",
-          "when": "activeWebviewPanelId == 'claudeVSCodePanel' && (!resource || resourceScheme == 'webview-panel')",
-          "group": "1_claude@1"
-        },
-        {
-          "command": "claude-vscode.addSessionTabToGroup",
-          "when": "activeWebviewPanelId == 'claudeVSCodePanel' && (!resource || resourceScheme == 'webview-panel')",
-          "group": "1_claude@2"
-        },
-        {
-          "command": "claude-vscode.markSessionUnread",
-          "when": "activeWebviewPanelId == 'claudeVSCodePanel' && (!resource || resourceScheme == 'webview-panel')",
-          "group": "1_claude@3"
-        }
-      ],
       "editor/title": [
-        {
-          "command": "claude-vscode.renameSessionTab",
-          "when": "activeWebviewPanelId == 'claudeVSCodePanel' && (!resource || resourceScheme == 'webview-panel')",
-          "group": "1_claude@1"
-        },
-        {
-          "command": "claude-vscode.addSessionTabToGroup",
-          "when": "activeWebviewPanelId == 'claudeVSCodePanel' && (!resource || resourceScheme == 'webview-panel')",
-          "group": "1_claude@2"
-        },
-        {
-          "command": "claude-vscode.markSessionUnread",
-          "when": "activeWebviewPanelId == 'claudeVSCodePanel' && (!resource || resourceScheme == 'webview-panel')",
-          "group": "1_claude@3"
-        },
         {
           "command": "claude-vscode.acceptProposedDiff",
           "when": "claude-vscode.viewingProposedDiff",
@@ -564,6 +556,10 @@
         {
           "command": "claude-vscode.blur",
           "when": "false"
+        },
+        {
+          "command": "claude-vscode.focusLastMessage",
+          "when": "!config.claudeCode.useTerminal"
         },
         {
           "command": "claude-vscode.newConversation",
