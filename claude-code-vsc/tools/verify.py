@@ -8,12 +8,17 @@
 меняет рисунок номеров и вылезает наружу.
 
 Печатается имя каждой пострадавшей функции и первая разошедшаяся строка.
+
+    tools/verify.py <файл прежней версии> <перенесённый файл>
+
+Прежняя версия задаётся аргументом, а не константой: форк переехал из
+`Projects/claude-code-vsc` в `claude-trah/claude-code-vsc`, и зашитый путь
+пережил переезд молча — проверка искала бы файл, которого нет.
 """
 import re
 import sys
 from pathlib import Path
 
-ФОРК = Path("/home/kaltsit/Ledevia/Projects/claude-code-vsc/ext/extension/webview/index.js")
 ИМЯ = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*")
 НАЧАЛО = re.compile(r"^(?:function|var|class) (fork[A-Za-z0-9_]*)\b")
 
@@ -52,7 +57,9 @@ def по_форме(строки: list[str]) -> list[str]:
     return итог
 
 
-ПОРТ = Path(sys.argv[1])
+if len(sys.argv) != 3:
+    raise SystemExit("нужны два файла: прежняя версия и перенесённая")
+ФОРК, ПОРТ = Path(sys.argv[1]), Path(sys.argv[2])
 а, б = функции(ФОРК), функции(ПОРТ)
 пропали = sorted(set(а) - set(б))
 общие = sorted(set(а) & set(б))

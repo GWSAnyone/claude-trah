@@ -176181,6 +176181,12 @@ class K01 {
   requestUsageUpdate() {
     return this.sendRequest({ type: "request_usage_update" });
   }
+  forkBackgroundTasks($, J) {
+    return this.sendRequest({ type: "fork_background_tasks", toolUseId: J }, $);
+  }
+  forkStopTask($, J) {
+    return this.sendRequest({ type: "fork_stop_task", taskId: J }, $);
+  }
   listPlugins($) {
     return this.sendRequest({
       type: "list_plugins",
@@ -176264,6 +176270,11 @@ class K01 {
         $,
       )
     ).success;
+  }
+  // форк: диалог выбора каталога открывает хост — у вебвью доступа к нему нет
+  async forkPickDirectory($) {
+    return (await this.sendRequest({ type: "fork_pick_directory", current: $ }))
+      .path;
   }
   async persistSessionPermissionMode($, J, Z, Y) {
     await this.sendRequest({
@@ -182401,7 +182412,7 @@ function vR1($) {
         fileReads: $.map((Q) => {
           let G = Q.content[0].content;
           if (G.type !== "tool_use") return null;
-          return G.input;
+          return { ...G.input, forkResult: Q.content[0].toolResult.value };
         }),
       },
     },
@@ -184397,6 +184408,18 @@ class yQ {
   permissionRequests;
   userDialogRequests;
   permissionRequested = new z9();
+  // форк: «сессия уже начата, заведи новую вот в этом каталоге»
+  forkNewSessionRequested = new z9();
+  // форк: разбивка расхода по ходам, циклам, отрезкам и сессии
+  forkUsage = e1(forkEmptyUsage());
+  forkFoldPending = !1;
+  forkLastMessageId = void 0;
+  forkTurnPending = !1;
+  // форк: чью ленту показываем. null — свою, иначе id вызова Agent.
+  forkFocus = e1(null);
+  // форк: расход подагентов. Ключ — id вызова Agent, значение — вид
+  // forkEmptyAgentUsage. В счёт сессии эта работа не входит вовсе.
+  forkAgents = e1(new Map());
   awsAuthInProgress;
   lastSentSelection;
   pendingCompactMessage;
@@ -184670,6 +184693,7 @@ class yQ {
       (Y.summary.value = $.summary),
       (Y.hasPersistedTitle.value = !!$.customTitle),
       (Y.worktree.value = $.worktree),
+      (Y.cwd.value = $.cwd), // форк: путь сессии нужен списку истории
       $.worktree)
     )
       Y.cwd.value = $.worktree.path;
@@ -185343,6 +185367,22 @@ class yQ {
       (this.speechToTextActive.value = !1),
       (this.speechAudioLevel.value = 0));
   }
+  // форк: выбрать рабочий каталог сессии. Диалог выбора живёт только на стороне
+  // хоста, поэтому путь приходит оттуда, а дальше работает штатный механизм:
+  // cwd — свойство сессии, launchClaude() передаёт его при запуске канала.
+  async forkChangeCwd() {
+    let $ = this.connection.value ?? (await this.getConnection());
+    if (!$) return !1;
+    let J = await $.forkPickDirectory(this.cwd.value);
+    if (!J || J === this.cwd.value) return !1;
+    // Текущую сессию не трогаем никогда — ни начатую, ни пустую. Новый каталог
+    // означает новую сессию рядом, с переключением на неё: подменять содержимое
+    // открытого разговора нельзя, из него потом не вернуться.
+    return (this.forkNewSessionRequested.emit(J), !0);
+  }
+  onForkNewSessionRequested($) {
+    return this.forkNewSessionRequested.add($);
+  }
   async restartClaude() {
     this.pluginReloadFailed.value = !1;
     let $ = this.claudeChannelId;
@@ -185822,6 +185862,28 @@ class yQ {
       }
       Z();
     }, Z);
+  }
+  // форк: «доделывай в фоне» для выполняющегося инструмента. Без id уходят в
+  // фон все передние задачи разом — ровно семантика Ctrl+B в терминале.
+  async forkBackgroundTasks($) {
+    let J = this.connection.value,
+      Y = this.claudeChannelId;
+    if (!J || !Y) return !1;
+    try {
+      return (await J.forkBackgroundTasks(Y, $))?.backgrounded === !0;
+    } catch {
+      return !1;
+    }
+  }
+  async forkStopTask($) {
+    let J = this.connection.value,
+      Y = this.claudeChannelId;
+    if (!J || !Y) return !1;
+    try {
+      return (await J.forkStopTask(Y, $))?.success === !0;
+    } catch {
+      return !1;
+    }
   }
   async setModel($) {
     let J = this.modelSelection.value,
@@ -186488,6 +186550,7 @@ class yQ {
           }
       }
       if ($.message.usage && !$.parent_tool_use_id) {
+        this.forkNoteTurn($.message); // форк: ход закрыт, считаем его отдельно
         if ((this.updateUsage($.message.usage), $.message.model !== JT))
           this.recordPromptCacheFrame({
             messageId: $.message.id,
@@ -186496,6 +186559,10 @@ class yQ {
             usage: $.message.usage,
           });
       }
+      // форк: ход подагента считаем отдельно. Апстрим его не считает нигде —
+      // и updateUsage, и forkNoteTurn стоят под !parent_tool_use_id.
+      else if ($.message.usage && $.parent_tool_use_id)
+        this.forkNoteAgentTurn($.message, $.parent_tool_use_id);
       if (!$.parent_tool_use_id && $.message.model && $.message.model !== JT)
         this.lastServedModel.value = $.message.model;
     } else if ($.type === "system" && $.subtype === "init") {
@@ -186552,7 +186619,14 @@ class yQ {
             totalCost: 0,
           }),
           (this.promptCacheRecord.value = void 0),
-          (this.promptCacheRequestAt = void 0));
+          (this.promptCacheRequestAt = void 0),
+          // форк: сессия подменилась — счёт начинается с нуля
+          (this.forkUsage.value = forkEmptyUsage()),
+          (this.forkAgents.value = new Map()),
+          (this.forkFoldPending = !1),
+          (this.forkTurnPending = !1),
+          (this.forkLastMessageId = void 0),
+          (this.forkFocus.value = null));
       }
       if ((this.flushTtiReport(), this.sendStartedAt !== void 0)) {
         let Z = Math.round(performance.now() - this.sendStartedAt),
@@ -186604,7 +186678,14 @@ class yQ {
         (this.promptCacheRecord.value = x51(
           this.promptCacheRecord.value,
           Date.now(),
-        )));
+        )),
+        // форк: сводку последнего хода ДО складки выкладываем прямо здесь.
+        // Иначе она дождётся конца цикла и ляжет в ленту уже НИЖЕ отметки о
+        // сжатии — и ход с чтением всего разговора будет выглядеть как первый
+        // ход после сжатия. Место строки — над отметкой, к чему она и относится.
+        this.forkFlushTurnNote(),
+        // форк: отрезок закроется в конце цикла, а не прямо сейчас
+        (this.forkFoldPending = !0));
     else if ($.type === "system" && $.subtype === "task_started")
       this.handleTaskStarted($);
     else if ($.type === "system" && $.subtype === "task_progress")
@@ -186620,6 +186701,9 @@ class yQ {
       if ($.level !== "info" && Z !== "" && this.hasConversationContent.peek())
         this.insertMetaMessage(Z);
     } else if ($.type === "result") {
+      this.forkNoteGroup($); // форк: цикл закрыт
+      if (this.subagentTasks.value.size > 0)
+        this.subagentTasks.value = new Map();
       if ($.total_cost_usd !== void 0) {
         let Z = this.usageData.value,
           Y = this.currentMainLoopModel.value,
@@ -186682,7 +186766,11 @@ class yQ {
   handleTaskStarted($) {
     if (!("task_id" in $)) return;
     let J = $;
-    if (J.task_type !== "local_agent") return;
+    // форк: не только подагенты. В фон уходят и команды Bash, и следить за
+    // ними надо ровно так же — иначе фоновая задача исчезает из виду совсем.
+    // В 2.1.260 это уже так у апстрима: он же завёл `isBackgrounded` и
+    // отдельное событие `task_updated`. Комментарий оставлен как объяснение,
+    // почему в карте лежат не только агенты.
     let Z = J.tool_use_id ?? this.subagentSpawnToolUseIds.get(J.task_id);
     if (Z !== void 0) this.rememberSubagentSpawnToolUseId(J.task_id, Z);
     let Y = new Map(this.subagentTasks.value),
@@ -186810,6 +186898,283 @@ class yQ {
       return;
     let Z = new Map(this.subagentTasks.value);
     (Z.delete(J.task_id), (this.subagentTasks.value = Z));
+  }
+  // форк: ход закрыт — сообщение ассистента принесло свой usage
+  //
+  // ОДНО сообщение приезжает НЕСКОЛЬКИМИ событиями — по событию на блок
+  // содержимого, и `usage` в каждом одинаковый. Считать по событиям значит
+  // объявить пачку из десяти вызовов десятью ходами и десятью чтениями кэша,
+  // которых не было. Ход опознаётся по `message.id`; повторное событие того же
+  // сообщения только досчитывает вызовы.
+  forkNoteTurn($) {
+    if ($.id && $.id === this.forkLastMessageId) return this.forkAddCalls($);
+    // Приехало сообщение с другим id — значит, прошлый ход кончился ровно
+    // здесь. Выкладываем его сводку, пока новое сообщение ещё не легло в ленту:
+    // processMessage зовётся раньше, чем событие добавляется к this.messages.
+    this.forkFlushTurnNote();
+    this.forkLastMessageId = $.id;
+    let J = $.usage || {},
+      Z = Array.isArray($.content)
+        ? $.content.filter((U) => U.type === "tool_use").length
+        : 0,
+      X = {
+        input: J.input_tokens ?? 0,
+        cacheWrite: J.cache_creation_input_tokens ?? 0,
+        cacheRead: J.cache_read_input_tokens ?? 0,
+        output: J.output_tokens ?? 0,
+        calls: Z,
+        rounds: Z > 0 ? 1 : 0,
+        batchMax: Z,
+      },
+      Q = this.forkUsage.value;
+    this.forkUsage.value = {
+      ...Q,
+      turns: Q.turns + 1,
+      groupTurns: Q.groupTurns + 1,
+      segTurns: Q.segTurns + 1,
+      ctxBefore: Q.ctxUsed,
+      // Занятое окно — это вход плюс запись плюс чтение кэша. Выход не входит:
+      // он ещё не часть разговора, посланного заново.
+      ctxUsed: X.input + X.cacheWrite + X.cacheRead,
+      turn: X,
+      group: forkAddBucket(Q.group, X),
+      seg: forkAddBucket(Q.seg, X),
+      sum: forkAddBucket(Q.sum, X),
+    };
+    this.forkTurnPending = !0;
+  }
+  // форк: сводка хода выкладывается в ленту, когда ход ЗАКОНЧИЛСЯ, — то есть
+  // когда приехало сообщение с другим id или цикл закрылся событием result.
+  //
+  // Раньше она выкладывалась по первому же событию сообщения и потом
+  // переписывалась на месте. Это было неверно дважды.
+  //
+  // По месту: остальные блоки того же хода приезжают СЛЕДУЮЩИМИ событиями и
+  // ложатся в ленту ПОСЛЕ сводки. Черта «ход кончился» оказывалась в середине
+  // хода, а при пачке из десяти вызовов — над девятью из них.
+  //
+  // По числам: первое событие приходит, когда ответ ещё набирается, и итог
+  // приходилось догонять правкой уже показанной строки. Правка искала свою
+  // строку поиском назад по ленте и умела промахнуться. К моменту отложенной
+  // выкладки все события хода уже приехали: строка пишется один раз и сразу
+  // верной, догонять нечего.
+  forkFlushTurnNote() {
+    if (!this.forkTurnPending) return;
+    this.forkTurnPending = !1;
+    let $ = this.forkUsage.value,
+      J = $.turn,
+      Z = [`ход ${$.turns}`];
+    if (J.calls > 0)
+      Z.push(
+        `${forkNum(J.calls)} ${forkPlural(J.calls, "вызов", "вызова", "вызовов")}`,
+      );
+    Z.push(forkUsageTail(J));
+    this.messages.value = [
+      ...this.messages.value,
+      forkNoteMessage(
+        Z.join(" · "),
+        `Ход ${$.turns}: ${$.groupTurns}-й запрос к модели в цикле ${$.groups + 1}\n` +
+          forkUsageTitle(J) +
+          (J.calls > 1
+            ? `\nВсе ${forkNum(J.calls)} ${forkPlural(J.calls, "вызов", "вызова", "вызовов")} ушли ОДНОЙ пачкой — это один запрос, не ${forkNum(J.calls)}`
+            : "") +
+          `\nКонтекст ${forkNum($.ctxBefore)} → ${forkNum($.ctxUsed)}`,
+      ),
+    ];
+  }
+  // Догоняем вызовы, приехавшие следующими событиями того же сообщения.
+  // Сводка хода уже показана — правим её на месте, а не плодим вторую.
+  forkAddCalls($) {
+    let J = Array.isArray($.content)
+      ? $.content.filter((z) => z.type === "tool_use").length
+      : 0;
+    let Z = this.forkUsage.value,
+      // Расход того же сообщения УТОЧНЯЕТСЯ по дороге.
+      //
+      // Первое событие приезжает, когда ответ ещё набирается, и `output_tokens`
+      // в нём предварительный — единицы. Настоящее число приходит следующими
+      // событиями того же `message.id`. Взять первое и больше не смотреть —
+      // это и есть «выход хода: 3 токена» при ответе на тысячу слов.
+      //
+      // Берём максимум по каждой величине: они растут монотонно, и максимум
+      // верен независимо от того, какое именно событие принесло итог.
+      U = $.usage || {},
+      V = {
+        input: Math.max(0, (U.input_tokens ?? 0) - Z.turn.input),
+        cacheWrite: Math.max(
+          0,
+          (U.cache_creation_input_tokens ?? 0) - Z.turn.cacheWrite,
+        ),
+        cacheRead: Math.max(
+          0,
+          (U.cache_read_input_tokens ?? 0) - Z.turn.cacheRead,
+        ),
+        output: Math.max(0, (U.output_tokens ?? 0) - Z.turn.output),
+      },
+      H = V.input + V.cacheWrite + V.cacheRead + V.output > 0;
+    if (!J && !H) return;
+    let X = {
+        ...Z.turn,
+        input: Z.turn.input + V.input,
+        cacheWrite: Z.turn.cacheWrite + V.cacheWrite,
+        cacheRead: Z.turn.cacheRead + V.cacheRead,
+        output: Z.turn.output + V.output,
+        calls: Z.turn.calls + J,
+      },
+      Q = (z) => ({
+        ...z,
+        input: z.input + V.input,
+        cacheWrite: z.cacheWrite + V.cacheWrite,
+        cacheRead: z.cacheRead + V.cacheRead,
+        output: z.output + V.output,
+        calls: z.calls + J,
+        rounds: z.rounds || (X.calls > 0 ? 1 : 0),
+        batchMax: Math.max(z.batchMax, X.calls),
+      });
+    ((X.rounds = X.calls > 0 ? 1 : X.rounds),
+      (X.batchMax = Math.max(X.batchMax, X.calls)),
+      (this.forkUsage.value = {
+        ...Z,
+        ctxUsed: X.input + X.cacheWrite + X.cacheRead,
+        turn: X,
+        group: Q(Z.group),
+        seg: Q(Z.seg),
+        sum: Q(Z.sum),
+      }));
+  }
+  // форк: ход подагента закрыт — его сообщение принесло свой usage.
+  //
+  // Правила те же, что для своего хода, и по той же причине: ОДНО сообщение
+  // приезжает несколькими событиями, по событию на блок содержимого. Ход
+  // опознаётся по message.id, а величины по дороге уточняются — берём
+  // приращение, а не последнее значение, иначе выход хода останется тем
+  // предварительным, каким он был, пока ответ ещё набирался.
+  forkNoteAgentTurn($, J) {
+    let Z = this.forkAgents.value.get(J) ?? forkEmptyAgentUsage(),
+      Y = $.usage || {},
+      X = Array.isArray($.content)
+        ? $.content.filter((z) => z.type === "tool_use").length
+        : 0;
+    // Другой id — прошлый ход агента кончился ровно здесь.
+    if (!$.id || $.id !== Z.id) {
+      (this.forkFlushAgentNote(J),
+        (Z = this.forkAgents.value.get(J) ?? forkEmptyAgentUsage()),
+        (Z = {
+          ...Z,
+          id: $.id,
+          turns: Z.turns + 1,
+          ctxBefore: Z.ctxUsed,
+          done: forkAddBucket(Z.done, Z.turn),
+          turn: forkEmptyBucket(),
+        }));
+    }
+    let Q = {
+        input: Math.max(0, (Y.input_tokens ?? 0) - Z.turn.input),
+        cacheWrite: Math.max(
+          0,
+          (Y.cache_creation_input_tokens ?? 0) - Z.turn.cacheWrite,
+        ),
+        cacheRead: Math.max(
+          0,
+          (Y.cache_read_input_tokens ?? 0) - Z.turn.cacheRead,
+        ),
+        output: Math.max(0, (Y.output_tokens ?? 0) - Z.turn.output),
+      },
+      G = {
+        ...Z.turn,
+        input: Z.turn.input + Q.input,
+        cacheWrite: Z.turn.cacheWrite + Q.cacheWrite,
+        cacheRead: Z.turn.cacheRead + Q.cacheRead,
+        output: Z.turn.output + Q.output,
+        calls: Z.turn.calls + X,
+      };
+    ((G.rounds = G.calls > 0 ? 1 : 0), (G.batchMax = G.calls));
+    let q = new Map(this.forkAgents.value);
+    (q.set(J, {
+      ...Z,
+      pending: !0,
+      // Занятое окно агента — вход плюс запись плюс чтение кэша, как у себя.
+      ctxUsed: G.input + G.cacheWrite + G.cacheRead,
+      turn: G,
+    }),
+      (this.forkAgents.value = q));
+  }
+  // форк: сводка хода подагента ложится в ЕГО ленту — строка та же, что своя.
+  //
+  // Выкладывается, когда ход кончился: по приезде хода с другим id, а последний
+  // ход — по закрытию цикла. Своего события «агент закончил» в потоке нет, а
+  // рисовать сводку по первому событию значит показать выход в три токена и
+  // потом догонять его правкой уже показанной строки.
+  forkFlushAgentNote($) {
+    let J = this.forkAgents.value.get($);
+    if (!J || !J.pending) return;
+    let Z = new Map(this.forkAgents.value);
+    (Z.set($, { ...J, pending: !1 }), (this.forkAgents.value = Z));
+    let Y = J.turn,
+      X = [`ход ${J.turns}`];
+    if (Y.calls > 0)
+      X.push(
+        `${forkNum(Y.calls)} ${forkPlural(Y.calls, "вызов", "вызова", "вызовов")}`,
+      );
+    X.push(forkUsageTail(Y));
+    this.messages.value = [
+      ...this.messages.value,
+      forkNoteMessage(
+        X.join(" · "),
+        `Ход ${J.turns} подагента — счёт отдельный, в расход сессии не входит\n` +
+          forkUsageTitle(Y) +
+          `\nКонтекст агента ${forkNum(J.ctxBefore)} → ${forkNum(J.ctxUsed)}`,
+        $,
+      ),
+    ];
+  }
+  forkFlushAgentNotes() {
+    for (let $ of [...this.forkAgents.value.keys()]) this.forkFlushAgentNote($);
+  }
+  // форк: цикл закрыт событием result
+  forkNoteGroup(Z) {
+    // Последний ход цикла закончился здесь же — его сводка идёт первой.
+    (this.forkFlushTurnNote(), this.forkFlushAgentNotes());
+    let $ = this.forkUsage.value,
+      J = {
+        ...$,
+        groups: $.groups + 1,
+        segGroups: $.segGroups + 1,
+        lastGroup: $.group,
+        lastGroupTurns: $.groupTurns,
+        groupTurns: 0,
+        group: forkEmptyBucket(),
+      };
+    // Цена складки принадлежит свёрнутому отрезку, поэтому отрезок закрывается
+    // не в момент компакта, а в конце цикла — как в Завре.
+    if (this.forkFoldPending)
+      ((this.forkFoldPending = !1),
+        (J.segment = $.segment + 1),
+        (J.segTurns = 0),
+        (J.segGroups = 0),
+        (J.seg = forkEmptyBucket()));
+    this.forkUsage.value = J;
+    if (!$.groupTurns) return;
+    let X = [
+      `цикл ${$.groups + 1}`,
+      `${forkNum($.groupTurns)} ${forkPlural($.groupTurns, "ход", "хода", "ходов")}`,
+    ];
+    if ($.group.calls > 0)
+      X.push(forkBatchPhrase($.group.calls, $.group.rounds));
+    if (Z?.duration_ms >= 100) X.push(`${(Z.duration_ms / 1000).toFixed(1)}s`);
+    X.push(forkUsageTail($.group));
+    this.messages.value = [
+      ...this.messages.value,
+      forkNoteMessage(
+        X.join(" · "),
+        `Цикл ${$.groups + 1}: ${$.groupTurns} ${forkPlural($.groupTurns, "запрос", "запроса", "запросов")} к модели\n` +
+          ($.group.calls > 0
+            ? `${forkBatchPhrase($.group.calls, $.group.rounds)}, самая большая пачка ${forkNum($.group.batchMax)}\n`
+            : "") +
+          forkUsageTitle($.group) +
+          `\nОтрезок ${J.segment}, всего в сессии ${J.groups} ${forkPlural(J.groups, "цикл", "цикла", "циклов")}`,
+      ),
+    ];
   }
   clearBackgroundTasks() {
     if (this.backgroundTaskIds.value.size > 0)
@@ -187358,7 +187723,12 @@ class i51 {
     (J.onPermissionRequested((Q) => {
       this.permissionRequested.emit({ session: J, permissionRequest: Q });
     }),
+      // форк: начатая сессия не переезжает, она просит завести соседнюю
+      J.onForkNewSessionRequested((Q) => {
+        void this.createSession({ forkCwd: Q });
+      }),
       (J.isExplicit.value = $.isExplicit !== !1));
+    if ($.forkCwd) J.cwd.value = $.forkCwd; // форк: каталог выбран пользователем
     let Y = Z.config.value?.initialPermissionMode;
     if (Y) J.permissionMode.value = Y;
     if ($.existingWorktree)
@@ -190199,14 +190569,25 @@ function rf1({
     U = Z !== void 0 ? Z : z,
     V = Y !== void 0 ? Y : q,
     H = X
-      ? "Thinking..."
+      ? "Думает…"
       : Q !== null
-        ? `Thought for ${Math.round(Q / 1000)}s`
-        : "Thinking",
+        ? `Думал ${Math.round(Q / 1000)} с`
+        : "Думал",
     W = X && G ? F(TL0, { estimate: G }) : null;
+  // Пустой блок размышления — это НЕ «модель ничего не отдаёт».
+  //
+  // Так выглядит сессия, поднятая без `--thinking-display summarized`: блок
+  // приезжает, а текста в нём ноль при подписи в тысячу байт. Форк просит
+  // выжимку всегда (`thinkingSummariesDefaultOn`, extension.js), поэтому пустым
+  // блок остаётся только у сессий, поднятых ДО этой правки, — их не переписать.
+  //
+  // Раскрывать пустоту незачем: показываем то единственное, что известно.
   if (!$.thinking || !$.thinking.trim())
     return F("div", {
-      className: `${TX.thinking} ${TX.thinkingV2}`,
+      className: `${TX.thinking} ${TX.thinkingV2} forkThinkingBare`,
+      title:
+        "Выжимки размышления в этом блоке нет: сессия поднята без " +
+        "--thinking-display summarized. У новых сессий она будет.",
       children: R("div", {
         className: `${TX.thinkingSummary} ${TX.thinkingStatic}`,
         children: [F("span", { children: H }), W],
@@ -190411,8 +190792,25 @@ function MM($) {
 }
 class j61 extends R2 {
   name = "AgentOutputTool";
-  body() {
-    return null;
+  header() {
+    return F(E1, {
+      children: F("span", {
+        className: j0.toolNameText,
+        children: "Отчёт подагента",
+      }),
+    });
+  }
+  // Апстрим возвращал здесь `null` — карточка с безымянным заголовком
+  // раскрывалась в пустоту. Отчёт подагента и есть всё, ради чего его звали:
+  // ход подагента не виден вовсе, и не показать хотя бы итог значит оставить
+  // минуты работы совсем без следа.
+  body($, J, Y) {
+    let X = this.renderOutput($, Y, J);
+    if (!X) return null;
+    return F("div", {
+      className: j0.toolBody,
+      children: F("div", { className: j0.toolBodyGrid, children: X }),
+    });
   }
 }
 h();
@@ -191562,7 +191960,31 @@ class E61 extends R2 {
     });
   }
   body($, J, Z) {
-    return null;
+    let X = (J.fileReads || []).filter((Q) => Q && Q.forkResult);
+    if (X.length === 0) return null;
+    return F("div", {
+      className: j0.toolBody,
+      children: F("div", {
+        className: j0.toolBodyGrid,
+        children: X.map((Q, Z) => {
+          let G = Q.file_path ? Q.file_path.split("/").pop() : "file";
+          return R(
+            "div",
+            {
+              className: j0.toolBodyRow,
+              children: [
+                F("div", { className: j0.toolBodyRowLabel, children: G }),
+                F("div", {
+                  className: j0.toolBodyRowContent,
+                  children: $.renderContent(new kJ(Q.forkResult)),
+                }),
+              ],
+            },
+            Z,
+          );
+        }),
+      }),
+    });
   }
 }
 W$();
@@ -244154,7 +244576,12 @@ class jB1 extends SP {
     });
   }
   body($, J, Z) {
-    return null;
+    let X = this.renderOutput($, Z, J);
+    if (!X) return null;
+    return F("div", {
+      className: j0.toolBody,
+      children: F("div", { className: j0.toolBodyGrid, children: X }),
+    });
   }
   permissionRequest($, J) {
     let Z = (J.file_path || "").split("/").pop();
@@ -244403,6 +244830,320 @@ function Xn0($) {
 function JX0($, J) {
   return $.length > J ? $.slice(0, J) + "…" : $;
 }
+var forkSymbolKinds = {
+  1: "file",
+  2: "module",
+  3: "namespace",
+  4: "package",
+  5: "class",
+  6: "method",
+  7: "property",
+  8: "field",
+  9: "ctor",
+  10: "enum",
+  11: "interface",
+  12: "function",
+  13: "variable",
+  14: "const",
+  15: "string",
+  16: "number",
+  17: "bool",
+  18: "array",
+  19: "object",
+  20: "key",
+  21: "null",
+  22: "enum member",
+  23: "struct",
+  24: "event",
+  25: "operator",
+  26: "type param",
+};
+var forkPathKeys = new Set([
+  "file_path",
+  "notebook_path",
+  "path",
+  "relative_path",
+  "cwd",
+  "directory",
+]);
+var forkBodyKeys = new Set([
+  "old_string",
+  "new_string",
+  "content",
+  "body",
+  "needle",
+  "repl",
+  "edits",
+  "prompt",
+  "thought",
+]);
+var forkHeadKeys = {
+  find_symbol: ["name_path_pattern", "relative_path"],
+  find_referencing_symbols: ["name_path", "relative_path"],
+  find_declaration: ["name_path", "relative_path"],
+  find_implementations: ["name_path", "relative_path"],
+  get_symbols_overview: ["relative_path"],
+  search_for_pattern: ["substring_pattern", "relative_path"],
+  find_file: ["file_mask", "relative_path"],
+  replace_symbol_body: ["name_path", "relative_path"],
+  insert_after_symbol: ["name_path", "relative_path"],
+  insert_before_symbol: ["name_path", "relative_path"],
+  replace_content: ["relative_path"],
+  replace_in_files: ["pattern", "relative_path"],
+  rename_symbol: ["name_path", "new_name"],
+  safe_delete_symbol: ["name_path", "relative_path"],
+  read_memory: ["memory_name"],
+  write_memory: ["memory_name"],
+  edit_memory: ["memory_name"],
+  list_dir: ["relative_path"],
+  get_diagnostics_for_file: ["relative_path"],
+  activate_project: ["project"],
+  query_project: ["project_name", "tool_name"],
+};
+function forkShortPath($) {
+  if (typeof $ !== "string" || !$) return "";
+  return $.replace(/^\/home\/[^/]+/, "~").replace(/^\/Users\/[^/]+/, "~");
+}
+function forkShort($, J) {
+  return $.length > J ? $.slice(0, J) + "…" : $;
+}
+// Параметры вызова строками «ключ · значение» вместо слепка JSON.
+//
+// Слепок читается плохо ровно там, где его и читают: путь тонет среди скобок,
+// а тело символа приезжает одной строкой с `\n` вместо переносов. Строка на
+// ключ — то же содержимое, но глазами.
+function forkParamRows($) {
+  if (!$ || typeof $ !== "object") return null;
+  let J = Object.entries($).filter(
+    ([Y, X]) => X !== void 0 && X !== null && X !== "",
+  );
+  if (J.length === 0) return null;
+  return J.map(([Y, X]) => {
+    let Q;
+    if (typeof X === "string" && (forkBodyKeys.has(Y) || X.includes("\n")))
+      Q = F("pre", { children: X });
+    else if (typeof X === "string")
+      Q = forkPathKeys.has(Y) ? forkShortPath(X) : X;
+    else Q = JSON.stringify(X);
+    return R(
+      "div",
+      {
+        className: j0.toolBodyRow,
+        children: [
+          F("div", { className: j0.toolBodyRowLabel, children: Y }),
+          F("div", { className: j0.toolBodyRowContent, children: Q }),
+        ],
+      },
+      Y,
+    );
+  });
+}
+// Ответ Serena: список символов, обзор файла, совпадения поиска.
+//
+// Ответ приезжает JSON-строкой, и в ней тело символа — одна строка с `\n`.
+// Разбираем то, что разбирается, и рисуем таблицей; всё остальное отдаём как
+// есть — выдумывать разметку для незнакомого ответа хуже, чем показать текст.
+function forkSerenaOutput($) {
+  let J;
+  try {
+    J = JSON.parse($);
+  } catch {
+    return null;
+  }
+  if (
+    Array.isArray(J) &&
+    J.length &&
+    J.every((Y) => Y && typeof Y === "object" && (Y.name_path || Y.name))
+  )
+    return forkSymbolTable(J, !1);
+  if (J && typeof J === "object" && !Array.isArray(J)) {
+    let Y = Object.values(J);
+    if (Y.length && Y.every((X) => Array.isArray(X) && X.length)) {
+      if (Y.every((X) => X.every((Q) => Q && typeof Q === "object")))
+        return Object.entries(J).map(([X, Q]) =>
+          R(
+            "div",
+            {
+              className: "forkSrGroup",
+              children: [
+                F("div", {
+                  className: "forkSrFile",
+                  children: forkShortPath(X),
+                }),
+                forkSymbolTable(Q, !0),
+              ],
+            },
+            X,
+          ),
+        );
+      if (Y.every((X) => X.every((Q) => typeof Q === "string")))
+        return Object.entries(J).map(([X, Q]) =>
+          R(
+            "div",
+            {
+              className: "forkSrGroup",
+              children: [
+                R("div", {
+                  className: "forkSrFile",
+                  children: [
+                    forkShortPath(X),
+                    F("span", { className: "forkSrCount", children: Q.length }),
+                  ],
+                }),
+                F("pre", {
+                  className: "forkSrLines",
+                  children: Q.join(`
+`),
+                }),
+              ],
+            },
+            X,
+          ),
+        );
+    }
+  }
+  return null;
+}
+function forkSymbolTable($, J) {
+  return $.map((Y, X) => {
+    let Q =
+        typeof Y.kind === "number"
+          ? forkSymbolKinds[Y.kind] || Y.kind
+          : Y.kind || "",
+      Z = Y.body_location || Y.location || {},
+      G = Z.start_line != null ? Z.start_line : Y.line != null ? Y.line : "",
+      q = Y.relative_path || Y.file || "";
+    return R(
+      "div",
+      {
+        className: "forkSrItem",
+        children: [
+          R("div", {
+            className: "forkSrRow",
+            children: [
+              Q &&
+                F("span", {
+                  // Род символа красится по категории, как в Завре: функции —
+                  // синим, типы — янтарным, данные — зелёным. По цвету список
+                  // читается, не читая слов.
+                  className: "forkSrKind is-" + String(Q).replace(/\s+/g, "-"),
+                  children: String(Q),
+                }),
+              F("span", {
+                className: "forkSrName",
+                children: Y.name_path || Y.name,
+              }),
+              !J &&
+                q &&
+                F("span", {
+                  className: "forkSrPath",
+                  children: forkShortPath(q),
+                }),
+              G !== "" &&
+                F("span", { className: "forkSrLine", children: ":" + G }),
+            ],
+          }),
+          Y.body &&
+            R("details", {
+              className: "forkSrBody",
+              children: [
+                F("summary", { children: "тело" }),
+                F("pre", { children: Y.body }),
+              ],
+            }),
+        ],
+      },
+      X,
+    );
+  });
+}
+// Правка через MCP показывается диффом, а не двумя кусками текста.
+//
+// `replace_content` и его родня несут в аргументах ОБА состояния — что искали и
+// чем заменяют. Показанные подряд двумя блоками, они требуют сличать их
+// глазами; ровно для этого и существует дифф. Считаем не сами: берём тот же
+// `tY0`, которым расширение рисует правку через `Edit`, — один вид правки во
+// всех карточках, и ни строки своего кода сравнения.
+function forkDiff($, J, Y, X) {
+  return R("div", {
+    className: "forkDiffWrap",
+    children: [
+      R("div", {
+        className: "forkDiffPath",
+        children: [
+          forkShortPath($ || ""),
+          X ? F("span", { className: "forkDiffMark", children: X }) : null,
+        ],
+      }),
+      F("div", {
+        className: `${j0.toolBody} ${eY0.toolBodyWrapper}`,
+        children: F(tY0, { original: J, modified: Y, filePath: $ || "" }),
+      }),
+    ],
+  });
+}
+function forkCode($, J) {
+  return R("div", {
+    className: "forkDiffWrap",
+    children: [
+      F("div", { className: "forkDiffPath", children: $ }),
+      F("pre", { className: "forkCodeBlock", children: J }),
+    ],
+  });
+}
+function forkOmit($, J) {
+  if (!$ || !J) return $;
+  let Y = {};
+  for (let [X, Q] of Object.entries($)) if (!J.includes(X)) Y[X] = Q;
+  return Y;
+}
+function forkMcpDetail($, J) {
+  if (!J || typeof J !== "object") return null;
+  let Y = J.relative_path || J.file_path || "";
+  if ($ === "replace_content" && typeof J.needle === "string")
+    return {
+      keys: ["needle", "repl", "mode"],
+      node: forkDiff(
+        Y,
+        J.needle,
+        J.repl || "",
+        J.mode && J.mode !== "literal" ? J.mode : "",
+      ),
+    };
+  if ($ === "replace_in_files" && typeof J.repl === "string")
+    return {
+      keys: ["pattern", "repl", "mode"],
+      node: forkDiff(Y || "по файлам", J.pattern || "", J.repl, "regex"),
+    };
+  // Старого тела в запросе нет — показываем новое как код. Дифф тут был бы
+  // выдумкой: сравнивать не с чем.
+  if ($ === "replace_symbol_body" && typeof J.body === "string")
+    return {
+      keys: ["body"],
+      node: forkCode(`${J.name_path || ""} · новое тело`, J.body),
+    };
+  if (
+    ($ === "insert_after_symbol" || $ === "insert_before_symbol") &&
+    typeof J.body === "string"
+  )
+    return {
+      keys: ["body"],
+      node: forkDiff(
+        `${forkShortPath(Y)} · ${$ === "insert_after_symbol" ? "после" : "перед"} ${J.name_path || ""}`,
+        "",
+        J.body,
+      ),
+    };
+  if (
+    ($ === "write_memory" || $ === "edit_memory") &&
+    typeof J.content === "string"
+  )
+    return {
+      keys: ["content"],
+      node: forkCode(J.memory_name || "память", J.content),
+    };
+  return null;
+}
 class RB1 extends R2 {
   name;
   serverName;
@@ -244416,19 +245157,68 @@ class RB1 extends R2 {
       (this.humanizedServerName = _B1(this.serverName)));
   }
   header($, J) {
-    let Z = Xn0(J);
+    // Что показать рядом с именем, решают ключи ЭТОГО инструмента: у
+    // `find_symbol` это имя символа и файл, у `search_for_pattern` — образец.
+    // Прежний общий перебор (`Xn0`) знал только про канал и адрес и у Serena не
+    // находил ничего, оставляя заголовок безымянным.
+    let Y = (forkHeadKeys[this.toolName] || [])
+        .map((Q) => [Q, J && J[Q]])
+        .filter(([, Q]) => typeof Q === "string" && Q)
+        .map(([Q, Z]) =>
+          forkShort(forkPathKeys.has(Q) ? forkShortPath(Z) : Z, 60),
+        ),
+      X = Y.length ? Y.join("  ·  ") : Xn0(J);
     return R(M1, {
       children: [
         R("span", {
           className: j0.toolNameText,
-          children: [this.humanizedServerName, " [", this.toolName, "]"],
+          children: [this.humanizedServerName, " · ", this.toolName],
         }),
-        Z && F("span", { className: j0.toolNameTextSecondary, children: Z }),
+        X && F("span", { className: j0.toolNameTextSecondary, children: X }),
       ],
     });
   }
-  renderInput() {
-    return null;
+  body($, J, Y) {
+    let X = forkMcpDetail(this.toolName, J),
+      Q = this.renderInput($, X ? forkOmit(J, X.keys) : J),
+      Z = this.renderOutput($, Y, J);
+    return R(M1, {
+      children: [
+        X ? X.node : null,
+        (Q || Z) &&
+          F("div", {
+            className: j0.toolBody,
+            children: R("div", {
+              className: j0.toolBodyGrid,
+              children: [Q, Z],
+            }),
+          }),
+      ],
+    });
+  }
+  renderInput($, J) {
+    return forkParamRows(J);
+  }
+  // Клика по IN и OUT здесь нет намеренно.
+  //
+  // У остальных инструментов длинный вывод открывается файлом сбоку — и это
+  // разумно для сплошного текста. У Serena вывод уже разобран в таблицу, и клик
+  // подменял её сырым JSON в соседней панели: то же содержимое, но хуже, и
+  // случайно — попасть в него мышью проще, чем не попасть.
+  renderOutput($, J, Y) {
+    if (!J) return null;
+    let X = this.toOutputContent(J);
+    if (!X) return null;
+    return R("div", {
+      className: j0.toolBodyRow,
+      children: [
+        F("div", { className: j0.toolBodyRowLabel, children: "OUT" }),
+        F("div", {
+          className: j0.toolBodyRowContent,
+          children: forkSerenaOutput(X) || F("pre", { children: X }),
+        }),
+      ],
+    });
   }
 }
 W$();
@@ -244639,7 +245429,12 @@ class IB1 extends R2 {
     });
   }
   body($, J, Z) {
-    return null;
+    let X = this.renderOutput($, Z, J);
+    if (!X) return null;
+    return F("div", {
+      className: j0.toolBody,
+      children: F("div", { className: j0.toolBodyGrid, children: X }),
+    });
   }
   permissionRequest($, J, Z) {
     let Y = J.skill?.replace(/^\//, "") || "",
@@ -244784,7 +245579,7 @@ class hB1 extends R2 {
 h();
 class yB1 extends R2 {
   name = "ToolSearch";
-  hidden = !0;
+  hidden = !1;
   header($, J) {
     return R("div", {
       children: [
@@ -244805,7 +245600,17 @@ class yB1 extends R2 {
         return F(s6, { children: "No tools found" });
     } else if (Array.isArray(Y)) X = Y.filter(Hv).length;
     if (X === 0) return F(s6, { children: "No tools found" });
-    return F(s6, { children: X === 1 ? "Found 1 tool" : `Found ${X} tools` });
+    let G = this.renderOutput($, Y, J);
+    return R(L1, {
+      children: [
+        F(s6, { children: X === 1 ? "Found 1 tool" : `Found ${X} tools` }),
+        G &&
+          F("div", {
+            className: j0.toolBody,
+            children: F("div", { className: j0.toolBodyGrid, children: G }),
+          }),
+      ],
+    });
   }
 }
 class xB1 extends R2 {
@@ -244931,19 +245736,202 @@ function BY($, J) {
   return new xB1($);
 }
 h();
+// Знак рода действия перед именем инструмента.
+//
+// Не иконка ради иконки: по знаку лента читается сверху вниз, не читая имён, —
+// где читали, где правили, где искали, где ходили в сеть. Взято у Завра
+// (internal/httpapi/web/js/tools.js: toolGlyph) вместе с разбором имени MCP.
+function forkGlyph($) {
+  let J = /^mcp__([^_]+(?:_[^_]+)*?)__(.+)$/.exec($ || "");
+  if (J) {
+    let Y = J[2].toLowerCase();
+    if (/replace|insert|rename|delete|edit|write/.test(Y))
+      return { g: "✎", k: "edit" };
+    if (
+      /find|search|symbol|overview|declaration|implementation|reference|dir|file/.test(
+        Y,
+      )
+    )
+      return { g: "⌕", k: "find" };
+    if (/memory/.test(Y)) return { g: "◈", k: "mem" };
+    if (/think/.test(Y)) return { g: "∴", k: "think" };
+    return { g: "◆", k: "mcp" };
+  }
+  switch ($) {
+    case "Bash":
+    case "PowerShell":
+      return { g: "❯", k: "shell" };
+    case "Read":
+    case "ReadCoalesced":
+    case "NotebookRead":
+      return { g: "≡", k: "read" };
+    case "Edit":
+    case "MultiEdit":
+    case "Write":
+    case "NotebookEdit":
+      return { g: "✎", k: "edit" };
+    case "Grep":
+    case "Glob":
+    case "Search":
+      return { g: "⌕", k: "find" };
+    case "Task":
+    case "Agent":
+    case "TaskOutput":
+    case "AgentOutputTool":
+      return { g: "⧉", k: "task" };
+    case "WebFetch":
+    case "WebSearch":
+      return { g: "⊕", k: "web" };
+    case "TodoWrite":
+      return { g: "☑", k: "todo" };
+    case "Skill":
+      return { g: "✦", k: "skill" };
+    case "ToolSearch":
+      return { g: "⌕", k: "find" };
+    default:
+      return { g: "·", k: "other" };
+  }
+}
+function forkToolResultText($) {
+  if (!$) return "";
+  let J = $.content;
+  if (typeof J === "string") return J;
+  if (Array.isArray(J))
+    return J.map((Y) => (Y && Y.type === "text" ? Y.text : "")).join(`
+`);
+  return "";
+}
+function forkLinesWord($) {
+  let J = $ % 100,
+    Y = $ % 10;
+  if (J >= 11 && J <= 14) return "строк";
+  if (Y === 1) return "строка";
+  if (Y >= 2 && Y <= 4) return "строки";
+  return "строк";
+}
+function forkToolMeta($, J) {
+  let Y = [],
+    X = $.durationMillis;
+  if (X !== null && X >= 1500)
+    Y.push(`${(X / 1000).toFixed(1).replace(".", ",")} с`);
+  let Q = forkToolResultText(J);
+  if (Q) {
+    let Z = Q.split(`
+`).length;
+    if (Z > 1) Y.push(`${Z} ${forkLinesWord(Z)}`);
+  }
+  if (Y.length === 0) return null;
+  return F("span", {
+    className: "forkToolMeta",
+    children: ` · ${Y.join(" · ")}`,
+  });
+}
+function forkToolOpenByDefault($, J) {
+  if (!J) return !0;
+  if (J.is_error) return !0;
+  return (
+    $ === "Edit" ||
+    $ === "MultiEdit" ||
+    $ === "Write" ||
+    $ === "NotebookEdit" ||
+    $ === "ExitPlanMode"
+  );
+}
+// форк: что вообще можно увести в фон. CLI говорит об этом прямо в схеме
+// управляющего запроса: «Bash commands and subagents» — остальным инструментам
+// фон не положен, и кнопку им показывать значит врать.
+function forkBackgroundable($) {
+  return $ === "Bash" || $ === "Agent" || $ === "Task";
+}
+function forkBgButton($, J) {
+  let Y = $.activeSession?.value;
+  if (!Y) return null;
+  return F("button", {
+    type: "button",
+    className: "forkBgButton",
+    title:
+      "Доделывать в фоне — то же, что Ctrl+B в терминале.\n" +
+      "Инструмент продолжит работу, а модель пойдёт дальше не дожидаясь.",
+    onClick: (X) => {
+      (X.preventDefault(), X.stopPropagation(), Y.forkBackgroundTasks(J));
+    },
+    children: "в фон",
+  });
+}
+// Вход в ленту агента прямо из блока его вызова.
+//
+// Полоса агентов сверху — про то, что идёт СЕЙЧАС: закончивший с неё уходит,
+// иначе она копит хлам, который никогда не убирается. Но посмотреть, что агент
+// делал, хочется как раз ПОСЛЕ того, как он закончил, — и до этой кнопки такой
+// возможности не было вовсе. Блок вызова в ленте остаётся навсегда, поэтому
+// вход в ленту агента живёт на нём.
+function forkLaneButton($, J) {
+  let Y = $.activeSession?.value;
+  if (!Y) return null;
+  return F("button", {
+    type: "button",
+    className: "forkLaneButton",
+    title: "Показать ленту этого агента — что он делал и чем кончил",
+    onClick: (X) => {
+      (X.preventDefault(),
+        X.stopPropagation(),
+        (Y.forkFocus.value = Y.forkFocus.value === J ? null : J));
+    },
+    children: "лента",
+  });
+}
 function jn({ content: $, context: J }) {
   N5();
-  let Z = $.content;
+  // Имена здесь нарочно длинные, а не односимвольные: в 2.1.269 модульный
+  // помощник jsx зовётся `F`, и локальная `F` из прежней версии затёрла бы его
+  // внутри этой функции. Ровно тот класс дефекта, который ищет `verify.py`.
+  let [forkOpen, forkSetOpen] = l(null),
+    Z = $.content;
   if (BY(Z.name, J).hidden) return null;
-  let X = Hn0($, Z, J);
-  return R("div", {
-    className: j0.root,
+  let forkResult = $.toolResult.value,
+    forkBg =
+      forkResult === void 0 && forkBackgroundable(Z.name)
+        ? forkBgButton(J, Z.id)
+        : null,
+    // Вход в ленту — только у агента и в любом его состоянии: и пока работает,
+    // и когда закончил. У Bash ленты нет и не будет, ему кнопку не показываем.
+    forkLane = forkIsAgentTool(Z.name) ? forkLaneButton(J, Z.id) : null,
+    forkBody = Hn0($, Z, J),
+    forkSign = forkGlyph(Z.name),
+    forkTitle = R("span", {
+      className: j0.toolName,
+      children: [
+        F("span", {
+          className: `forkGlyph forkGlyph-${forkSign.k}`,
+          "aria-hidden": "true",
+          children: forkSign.g,
+        }),
+        Vn0(Z, J),
+      ],
+    }),
+    forkMeta = forkToolMeta($, forkResult);
+  if (!forkBody)
+    return R("div", {
+      className: j0.root,
+      children: [
+        R("summary", {
+          className: j0.toolSummary,
+          children: [forkTitle, forkMeta, forkLane, forkBg],
+        }),
+      ],
+    });
+  let forkIsOpen =
+    forkOpen === null ? forkToolOpenByDefault(Z.name, forkResult) : forkOpen;
+  return R("details", {
+    className: `${j0.root} forkTool`,
+    open: forkIsOpen,
+    onToggle: (forkEv) => forkSetOpen(forkEv.target.open),
     children: [
-      F("summary", {
-        className: j0.toolSummary,
-        children: F("span", { className: j0.toolName, children: Vn0(Z, J) }),
+      R("summary", {
+        className: `${j0.toolSummary} forkToolSummary`,
+        children: [forkTitle, forkMeta, forkLane, forkBg],
       }),
-      X,
+      forkBody,
     ],
   });
 }
@@ -247140,24 +248128,7 @@ function Yo0({
           F(tB1, { cancel: Y }),
         ],
       }),
-      F("div", {
-        className: w6.terminalNote,
-        children: R("p", {
-          children: [
-            "Prefer the terminal experience?",
-            " ",
-            R($8, {
-              onAction: () => X.openClaudeInTerminal(),
-              className: w6.terminalLink,
-              children: [
-                "Run ",
-                F("code", { children: "claude" }),
-                " in terminal",
-              ],
-            }),
-          ],
-        }),
-      }),
+      null, // форк: вырезано «Prefer the terminal experience?»
     ],
   });
 }
@@ -252311,6 +253282,7 @@ function Nq0($) {
   return J !== null && !Aq0(Z) && Y < Bq0;
 }
 function Oq0({ session: $ }) {
+  return null; // форк: вырезана плашка-анонс «Fable 5 …»
   N5();
   let J = Pq0($.config.value?.experimentGates.fable5_launch_show),
     Z = J === null ? "launch" : jq0(J),
@@ -252543,6 +253515,7 @@ function nP({ size: $ = 16 }) {
 }
 h();
 function kq0({ context: $ }) {
+  return null; // форк: вырезана плашка «Prefer the Terminal experience?»
   return R("div", {
     className: _y.banner,
     children: [
@@ -262317,6 +263290,12 @@ function JH0({ session: $ }) {
   N5();
   let J = $.remoteControlState.value;
   if (J.status === "disconnected") return null;
+  // форк: «подключаемся» не показываем. Прежняя правка убирала и «активен»
+  // тоже, но она била по БАННЕРУ над полем ввода; в 2.1.260 апстрим сам
+  // заменил его таблеткой в строке состояния, и «активен» там — дешёвый
+  // и полезный факт. Осталось убрать только переходное состояние: оно
+  // держится секунды и сообщает ровно ничего.
+  if (J.status === "connecting") return null;
   let Z = () =>
     $.logEvent("remote_control_pill_clicked", { status: vH(J.status) });
   if (J.status === "connected")
@@ -263832,6 +264811,841 @@ function LH0({ command: $, context: J, onRestartClaude: Z, onClose: Y }) {
   });
 }
 h();
+// ─────────────────── форк: разбивка расхода токенов ───────────────────
+//
+// Апстрим схлопывает usage в одно число (updateUsage), теряя разбивку. Здесь
+// она сохраняется и копится на четырёх уровнях, как в Завре: ход, цикл,
+// отрезок (между складками) и вся сессия.
+//
+//   ход    — одно сообщение ассистента с usage: единица, за которую платят
+//   цикл   — от реплики до события result: N ходов
+//   отрезок — между компактами
+//
+function forkEmptyBucket() {
+  return {
+    input: 0,
+    cacheWrite: 0,
+    cacheRead: 0,
+    output: 0,
+    calls: 0,
+    rounds: 0,
+    batchMax: 0,
+  };
+}
+function forkEmptyUsage() {
+  return {
+    segment: 1,
+    turns: 0,
+    groups: 0,
+    groupTurns: 0,
+    segTurns: 0,
+    segGroups: 0,
+    ctxUsed: 0,
+    ctxBefore: 0,
+    turn: forkEmptyBucket(),
+    group: forkEmptyBucket(),
+    lastGroup: forkEmptyBucket(),
+    lastGroupTurns: 0,
+    seg: forkEmptyBucket(),
+    sum: forkEmptyBucket(),
+  };
+}
+// форк: счёт одного подагента. Величины те же, что у своей полосы, и считаются
+// тем же кодом — иначе числа разойдутся и сравнивать их будет нельзя.
+//
+// Ходы держим двумя вёдрами: `done` — закрытые, `turn` — текущий. Сумма берётся
+// сложением в месте чтения, и тогда `rounds` с `batchMax` остаются верными сами
+// собой: заход засчитывается ХОДОМ, а не событием, которых у одного хода
+// несколько.
+function forkEmptyAgentUsage() {
+  return {
+    id: void 0,
+    turns: 0,
+    pending: !1,
+    ctxUsed: 0,
+    ctxBefore: 0,
+    turn: forkEmptyBucket(),
+    done: forkEmptyBucket(),
+  };
+}
+function forkAgentSum($) {
+  return forkAddBucket($.done, $.turn);
+}
+function forkAddBucket($, J) {
+  return {
+    input: $.input + J.input,
+    cacheWrite: $.cacheWrite + J.cacheWrite,
+    cacheRead: $.cacheRead + J.cacheRead,
+    output: $.output + J.output,
+    calls: $.calls + J.calls,
+    rounds: $.rounds + J.rounds,
+    batchMax: Math.max($.batchMax, J.batchMax),
+  };
+}
+// «Прибавилось к разговору» — свежий вход плюс то, что ушло в запись кэша.
+// Чтение кэша сюда не входит: это весь разговор, посланный заново.
+function forkAdded($) {
+  return $.input + $.cacheWrite;
+}
+// Разряды разделяются узким пробелом, без «h» и «M» — ровно как в Завре.
+function forkNum($) {
+  return String(Math.round($ || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
+// ─────────────────── форк: полоса под строкой ввода ───────────────────
+//
+// Устройство метра взято у Завра (internal/httpapi/web/js/chat.js:4143):
+// подпись, полоса 84×6, процент, хвост. Три порога цвета — 60 % и 85 %.
+// Квадратиков «██░░» в Завре нет и здесь не будет: там CSS-полоса.
+function forkPlural($, J, Z, Y) {
+  let X = Math.abs($) % 100,
+    G = X % 10;
+  if (X > 10 && X < 20) return Y;
+  if (G === 1) return J;
+  if (G > 1 && G < 5) return Z;
+  return Y;
+}
+// «12 вызовов разом» против «12 вызовов в 4 захода» — разница существенная:
+// первое значит, что модель сложила пачку, второе — что ходила по одному.
+function forkBatchPhrase($, J) {
+  if ($ <= 0) return "";
+  let Z = `${forkNum($)} ${forkPlural($, "вызов", "вызова", "вызовов")}`;
+  return J <= 1
+    ? `${Z} разом`
+    : `${Z} в ${J} ${forkPlural(J, "заход", "захода", "заходов")}`;
+}
+// Хвост из четырёх величин, подписи стрелками — как в Завре:
+//   + прибавилось к разговору   ↓ прочитано из кэша   ↑ записано   ↗ выход
+function forkUsageTail($) {
+  return `+${forkNum(forkAdded($))} ↓${forkNum($.cacheRead)} ↑${forkNum($.cacheWrite)} ↗${forkNum($.output)}`;
+}
+function forkUsageTitle($) {
+  return (
+    `Прибавилось к разговору ${forkNum(forkAdded($))} ` +
+    `(${forkNum($.input)} свежих + ${forkNum($.cacheWrite)} записано в кэш)\n` +
+    `Прочитано из кэша ${forkNum($.cacheRead)} — весь разговор, посланный заново\n` +
+    `Выход ${forkNum($.output)}`
+  );
+}
+
+// Сводка хода или цикла — строкой в самой ленте.
+//
+// Тип «meta» взят намеренно, а не заведён свой: meta уже проходит через
+// группировку, складки и прокрутку ленты, а новому типу пришлось бы учить их
+// все. Признак «наша» — второй блок содержимого: апстримный рендер читает
+// только первый и о втором не знает.
+// Третий аргумент — чья это сводка. Своя идёт без него; сводка хода подагента
+// обязана нести id его вызова, иначе она уедет в МОЮ ленту: ленты делятся по
+// sdkParentToolUseId (forkFocusMessages), и сообщение без родителя — моё.
+function forkNoteMessage($, J, Y) {
+  return new _Z(
+    "meta",
+    [
+      new kJ({ type: "text", text: $ }),
+      new kJ({ type: "text", text: "fork-note:" + (J || "") }),
+    ],
+    { uuid: globalThis.crypto.randomUUID(), sdkParentToolUseId: Y },
+  );
+}
+function forkIsNote($) {
+  let J = $.content[1]?.content;
+  return !!J && "text" in J && J.text.startsWith("fork-note:");
+}
+// Цвет в сводке — не украшение, а вес. Красим ровно то, за чем следят:
+// прибавку к разговору (растёт он или топчется), чтение и запись кэша, выход и
+// пачку. Пачка ярче всех: это единственное число здесь, которым СВОЙ ход можно
+// было сделать лучше, расход — только следствие. Один вызов за заход пачкой не
+// был, и красить его как достижение значило бы обесценить зелёный.
+//
+// Разбираем готовую строку, а не собираем её из кусков: сводка складывается в
+// двух местах и хранится в сообщении текстом, и переучивать оба ради разметки
+// значило бы завести третье место, где формат надо держать в согласии.
+// Разряды forkNum разделяет ТОНКИМ пробелом (U+2009), а не обычным. Если
+// перечислить в классе только обычный, находка обрывается на первом разделителе
+// разрядов: из «+1 234» красится «+1», из «↓195 005 784» — «↓195». Ровно это и
+// было видно в ленте, и ровно это я в прошлый раз не нашёл, потому что проверял
+// регулярку на строках, набранных руками с обычным пробелом.
+var forkNoteMarks =
+  /([+↓↑↗])([\d   ]*\d)|(\d[\d   ]*\s(?:вызов|вызова|вызовов)\s(?:разом|в \d+ заход\S*))|(\d+[.,]\d+s)/g;
+function forkNoteSpans($) {
+  let J = [],
+    Y = 0,
+    X;
+  // Каждый кусок — свой узел с ключом, включая простой текст между находками.
+  // Смешивать в одном массиве голые строки и узлы нельзя: при пересборке
+  // соседние строки склеиваются, и покрашенным остаётся первый кусок, а
+  // остальные приезжают обычным текстом. Ровно это и было видно в ленте.
+  let Z = (G, q) => J.push(F("span", { className: q, children: G }, J.length));
+  for (forkNoteMarks.lastIndex = 0; (X = forkNoteMarks.exec($));) {
+    if (X.index > Y) Z($.slice(Y, X.index), "forkNotePlain");
+    let Q = X[1]
+      ? X[1] === "+"
+        ? "forkNoteAdd"
+        : X[1] === "↓"
+          ? "forkNoteRead"
+          : X[1] === "↑"
+            ? "forkNoteWrite"
+            : "forkNoteOut"
+      : X[3]
+        ? X[3].includes("разом")
+          ? "forkNoteBatch"
+          : "forkNoteSolo"
+        : "forkNoteTime";
+    Z(X[0], Q);
+    Y = X.index + X[0].length;
+  }
+  if (Y < $.length) Z($.slice(Y), "forkNotePlain");
+  return J;
+}
+function forkNoteRow({ message: $ }) {
+  let J = $.content[0]?.content,
+    Z = J && "text" in J ? J.text : "",
+    Y = $.content[1]?.content,
+    X = Y && "text" in Y ? Y.text.slice(10) : "";
+  if (!Z) return null;
+  return R("div", {
+    className: Z.startsWith("цикл")
+      ? "forkNoteLine forkNoteEnd"
+      : "forkNoteLine",
+    title: X,
+    children: forkNoteSpans(Z),
+  });
+}
+function forkMeter({ label: $, pct: J, title: Y, tail: X, key: Q }) {
+  let Z = Math.max(0, Math.min(100, Math.round(J)));
+  return R(
+    "span",
+    {
+      className:
+        "forkMeter" +
+        (Z >= 85 ? " forkMeterHot" : Z >= 60 ? " forkMeterWarm" : ""),
+      title: Y || "",
+      children: [
+        $ ? F("span", { className: "forkMeterLabel", children: $ }) : null,
+        F("span", {
+          className: "forkMeterBar",
+          children: F("span", {
+            className: "forkMeterFill",
+            style: { width: `${Z}%` },
+          }),
+        }),
+        F("span", { className: "forkMeterPct", children: `${Z}%` }),
+        X ? F("span", { className: "forkMeterTail", children: X }) : null,
+      ],
+    },
+    Q,
+  );
+}
+function forkPct($, J) {
+  return J > 0 ? Math.round(($ / J) * 100) : 0;
+}
+// Доля приходит то нормированной, то в процентах — смотря каким путём
+function forkUtil($) {
+  return $ === void 0 || $ === null ? void 0 : $ <= 1 ? $ * 100 : $;
+}
+function forkUntilReset($) {
+  let J = new Date($).getTime() - Date.now();
+  if (!isFinite(J) || J <= 0) return "сейчас";
+  let Z = Math.floor(J / 3600000),
+    Y = Math.round((J % 3600000) / 60000);
+  return Z > 0 ? `${Z}h ${Y}m` : `${Y}m`;
+}
+// ────────────── форк: агенты сессии и переключение между ними ──────────────
+//
+// Сообщения подагента приезжают в ТУ ЖЕ ленту, что и наши: у каждого стоит
+// sdkParentToolUseId — id того самого вызова Agent, который этого подагента
+// породил (Rt, :180024). Апстрим их не выбрасывает, а сворачивает в складку
+// внутри основной ленты (sX0/nX0, :177706) и нигде не спрашивает, какому
+// агенту строка принадлежит. Поэтому весь механизм ниже собирается из того,
+// что уже лежит в this.messages: у хоста ничего просить не нужно, и работает
+// он одинаково для живого агента и для давно закончившегося.
+// Только настоящие подагенты. Skill сюда не входит: у навыка своя лента бывает,
+// но агентом он не является, и в списке агентов он — мусор.
+function forkIsAgentTool($) {
+  return $ === "Agent" || $ === "Task";
+}
+function forkText($) {
+  return typeof $ === "string" && $.trim() ? $.trim() : "";
+}
+function forkAgentLabel($, J) {
+  let Z = J && typeof J === "object" ? J : {};
+  if ($ === "Agent" || $ === "Task")
+    return (
+      forkText(Z.description) ||
+      forkText(Z.subagent_type) ||
+      forkText(Z.prompt).slice(0, 60) ||
+      $
+    );
+  return forkText(Z.name) || $.replace(/^skill__/, "") || $;
+}
+// Один проход по ленте: кто был запущен, чем занят и сколько успел.
+//
+// Состояние берём из toolResult самого вызова, а не из поиска ответного
+// сообщения: результат кладут прямо в блок вызова (Rt, :180019), и он
+// сигнальный — строка агента сама позеленеет, когда агент закончит.
+// Второй аргумент — карта расхода подагентов (session.forkAgents): счёт ведётся
+// по потоку, а не по ленте, потому что usage лежит в событии, а не в сообщении.
+function forkScanAgents($, K) {
+  let J = [],
+    Y = new Map();
+  for (let X = 0; X < $.length; X++) {
+    let Q = $[X],
+      Z = Q.sdkParentToolUseId ?? Q.parentToolUseId ?? null;
+    for (let G of Q.content) {
+      let q = G.content;
+      if (Q.type === "assistant" && q.type === "tool_use") {
+        if (forkIsAgentTool(q.name)) {
+          let z = G.toolResult.value,
+            U = {
+              id: q.id,
+              tool: q.name,
+              label: forkAgentLabel(q.name, q.input),
+              parent: Z,
+              status: z === void 0 ? "running" : z.is_error ? "error" : "done",
+              turns: 0,
+              calls: 0,
+              last: "",
+              use: K?.get(q.id) ?? null,
+            };
+          (J.push(U), Y.set(q.id, U));
+        }
+        if (Z) {
+          let z = Y.get(Z);
+          if (z) ((z.calls += 1), (z.last = q.name));
+        }
+      }
+    }
+    if (Z && Q.type === "assistant") {
+      let G = Y.get(Z);
+      if (G) G.turns += 1;
+    }
+  }
+  return J;
+}
+// Ленты разделены: своя — отдельно, каждого агента — отдельно.
+//
+// ЧТО БЫЛО НЕ ТАК. Апстрим выбрасывает из ленты только `parentToolUseId`, а он
+// стоит лишь у ПОЛЬЗОВАТЕЛЬСКИХ сообщений подагента (результаты инструментов).
+// Ответы подагента приезжают с `sdkParentToolUseId` и рисовались наравне с
+// моими: со стороны это выглядит как будто основной агент вдруг занялся чем-то
+// посторонним. Замер потока 04.09.2026: из 12 сообщений ассистента 5 были
+// подагентскими, все с `parent_tool_use_id` вызова `Agent`.
+//
+// Прежняя наша редакция возвращала при пустом фокусе ленту ЦЕЛИКОМ — то есть
+// чинила только обратный переход, в ленту агента, а смешение оставляла.
+//
+// ТЕПЕРЬ. Нет фокуса — только сообщения без родителя, то есть ровно мои. Есть
+// фокус — только сообщения этого агента. Работа подагента из ленты не пропадает:
+// в ней остаётся блок вызова `Agent(…)` со счётчиками, и он же вход в его ленту.
+function forkFocusMessages($, J) {
+  if (!J) return $.filter((Z) => !(Z.sdkParentToolUseId ?? Z.parentToolUseId));
+  return $.filter((Z) => (Z.sdkParentToolUseId ?? Z.parentToolUseId) === J);
+}
+function forkAgentGlyph($, J) {
+  return J ? "◐" : $ === "running" ? "●" : $ === "error" ? "✗" : "✓";
+}
+// Строка не button, а div с ролью: внутри живёт кнопка остановки, а кнопка
+// внутри кнопки — недопустимая разметка, и браузер её ломает как хочет.
+function forkAgentRow($, J, Y, X, Q) {
+  let Z = [];
+  if (J.turns)
+    Z.push(`${J.turns} ${forkPlural(J.turns, "ход", "хода", "ходов")}`);
+  if (J.calls)
+    Z.push(`${J.calls} ${forkPlural(J.calls, "вызов", "вызова", "вызовов")}`);
+  if (J.status === "running" && J.last) Z.push(J.last);
+  if (J.bg) Z.push("в фоне");
+  // Расход агента — тем же хвостом, что и сводка своего хода: +прибавка
+  // ↓чтение ↑запись ↗выход. Числа считаны тем же кодом, что своя полоса,
+  // поэтому сравнивать их со своими можно прямо глазом.
+  let W = J.use ? forkAgentSum(J.use) : null;
+  if (W && (W.output || W.cacheRead || W.input)) Z.push(forkUsageTail(W));
+  let G = () => {
+    if (Q) $.forkFocus.value = Y ? null : J.id;
+  };
+  return R(
+    "div",
+    {
+      className:
+        `forkAgentRow forkAgentRow-${J.status}` +
+        (Y ? " forkAgentRowOn" : "") +
+        (Q ? "" : " forkAgentRowFlat"),
+      role: Q ? "button" : void 0,
+      tabIndex: Q ? 0 : void 0,
+      title:
+        `${J.tool}: ${J.label}\n` +
+        (J.status === "running"
+          ? J.bg
+            ? "работает в фоне"
+            : "работает"
+          : J.status === "error"
+            ? "закончил ошибкой"
+            : "закончил") +
+        (J.use?.turns
+          ? `\n${J.use.turns} ${forkPlural(J.use.turns, "ход", "хода", "ходов")}, контекст ${forkNum(J.use.ctxUsed)}\n${forkUsageTitle(W)}` +
+            "\nСчёт агента отдельный: в расход сессии его работа не входит"
+          : "") +
+        (Q
+          ? "\nЩелчок — открыть его ленту в этом же окне"
+          : "\nСвоей ленты у этой задачи нет — смотреть нечего"),
+      onClick: G,
+      onKeyDown: (q) => {
+        if (Q && (q.key === "Enter" || q.key === " "))
+          (q.preventDefault(), G());
+      },
+      children: [
+        F("span", {
+          className: `forkAgentGlyph forkAgentGlyph-${J.bg ? "bg" : J.status}`,
+          children: forkAgentGlyph(J.status, J.bg),
+        }),
+        X > 0
+          ? F("span", { className: "forkAgentDepth", children: "└ " })
+          : null,
+        F("span", { className: "forkAgentLabel", children: J.label }),
+        Z.length
+          ? F("span", { className: "forkAgentTail", children: Z.join(" · ") })
+          : null,
+        J.taskId
+          ? F("button", {
+              type: "button",
+              className: "forkAgentStop",
+              title: "Остановить задачу",
+              onClick: (q) => {
+                (q.preventDefault(),
+                  q.stopPropagation(),
+                  $.forkStopTask(J.taskId));
+              },
+              children: "■",
+            })
+          : null,
+      ],
+    },
+    J.id,
+  );
+}
+// Список агентов строкой на брата, под полосой расхода. Основная лента —
+// такая же строка первой: возврат к себе должен быть тем же движением, что и
+// уход, иначе «где я сейчас» приходится держать в голове.
+function forkAgentBar({ session: $ }) {
+  let J = $.messages.value,
+    K = $.forkAgents.value,
+    Y = forkScanAgents(J, K),
+    X = $.forkFocus.value,
+    // Своя лента есть только у того, чьи сообщения в ленте лежат. У фоновой
+    // команды Bash их нет и не будет — такую строку показываем, но щёлкать по
+    // ней некуда, и притворяться кнопкой она не должна.
+    z = new Set();
+  for (let f0 of J) {
+    let d0 = f0.sdkParentToolUseId ?? f0.parentToolUseId;
+    if (d0) z.add(d0);
+  }
+  // Задачи в фоне — те же строки. Ушедшего в фон агента не удваиваем: у задачи
+  // записан id её вызова, по нему она и садится на свою собственную строку.
+  let U = new Map(Y.map((f0) => [f0.id, f0]));
+  for (let f0 of $.subagentTasks.value.values()) {
+    let d0 = f0.recentTools?.length
+        ? f0.recentTools[f0.recentTools.length - 1]
+        : "",
+      n0 = f0.toolUseId ? U.get(f0.toolUseId) : void 0;
+    if (n0) {
+      ((n0.bg = !0), (n0.taskId = f0.taskId));
+      if (d0) n0.last = d0;
+      continue;
+    }
+    let i0 = {
+      id: f0.toolUseId ?? `task:${f0.taskId}`,
+      tool: f0.taskType === "local_agent" ? "Agent" : "Bash",
+      label:
+        forkText(f0.description) || forkText(f0.summary) || "фоновая задача",
+      parent: null,
+      status: "running",
+      turns: 0,
+      calls: 0,
+      last: d0,
+      bg: !0,
+      taskId: f0.taskId,
+      use: f0.toolUseId ? (K.get(f0.toolUseId) ?? null) : null,
+    };
+    (Y.push(i0), U.set(i0.id, i0));
+  }
+  // Агент мог уехать вместе с лентой (новая сессия, откат) — не оставляем
+  // окно смотреть в пустоту. Сбрасываем в действии, а не по ходу отрисовки:
+  // правка сигнала прямо в теле рендера — это повторный рендер из рендера.
+  let q = X && !Y.some((G) => G.id === X);
+  e(() => {
+    if (q) $.forkFocus.value = null;
+  }, [q, $]);
+  if (q) X = null;
+  // Список — про то, что происходит СЕЙЧАС. Закончивший агент со строки
+  // уходит: его работа уже лежит в ленте, и держать её ещё и здесь значит
+  // копить хлам, который никогда не убирается. Исключение одно — тот, чью
+  // ленту мы прямо сейчас смотрим: без его строки не по чему вернуться.
+  //
+  // Вместе с последним агентом уходит и строка «основной»: переключаться не
+  // между чем, и одинокая плашка над полем ввода — просто занятое место.
+  let V = Y.filter((G) => G.status === "running" || G.id === X);
+  if (V.length === 0) return null;
+  let Z = (G) => {
+    let g0 = 0,
+      b0 = G.parent;
+    for (; b0 && g0 < 6;) ((g0 += 1), (b0 = U.get(b0)?.parent ?? null));
+    return g0;
+  };
+  return R("div", {
+    className: "forkAgentBar",
+    children: [
+      R(
+        "div",
+        {
+          className:
+            "forkAgentRow forkAgentRowMain" + (X ? "" : " forkAgentRowOn"),
+          role: "button",
+          tabIndex: 0,
+          title: "Основная лента — то, что делаю я сам",
+          onClick: () => {
+            $.forkFocus.value = null;
+          },
+          children: [
+            F("span", { className: "forkAgentGlyph", children: "▎" }),
+            F("span", { className: "forkAgentLabel", children: "основной" }),
+            F("span", {
+              className: "forkAgentTail",
+              children: `${V.length} ${forkPlural(V.length, "агент", "агента", "агентов")}`,
+            }),
+            // Ctrl+B без разбора: увести в фон всё, что сейчас на переднем
+            // плане. Ровно то, что делает Ctrl+B в терминале.
+            $.busy.value
+              ? F("button", {
+                  type: "button",
+                  className: "forkBgButton",
+                  title:
+                    "Увести в фон всё, что сейчас выполняется, — Ctrl+B в терминале",
+                  onClick: (G) => {
+                    (G.preventDefault(),
+                      G.stopPropagation(),
+                      $.forkBackgroundTasks());
+                  },
+                  children: "всё в фон",
+                })
+              : null,
+          ],
+        },
+        "main",
+      ),
+      ...V.map((G) => forkAgentRow($, G, G.id === X, Z(G), z.has(G.id))),
+    ],
+  });
+}
+
+// ─────────── форк: «пора сжиматься» по накопленному чтению отрезка ───────────
+//
+// Измеритель — НЕ доля окна и не число ходов, а сколько отрезок (от сжатия до
+// сжатия) уже прочитал из кэша. Причина в том, что чтение растёт квадратично:
+// каждый ход перечитывает всё накопленное раньше, поэтому доля окна ползёт
+// линейно и выглядит безобидно, а платёжка идёт по площади под этой линией.
+// Замер по 148 сессиям: на 20 % окна отрезок прочитал 9,5M, на 40 % — 44,1M,
+// на 90 % — 263M. Удвоение контекста учетверяет счёт.
+//
+// Пороги — из той же таблицы (расследование записано в память Завра):
+//   10M — контекст идёт к ~190h, дальше начинается заметная переплата
+//   15M — ~233h; спокойный ритм, сжатие раз в сотню ходов, на треть дешевле,
+//         чем досиживать до половины окна
+//   30M — ~320h; дальше цена хода растёт быстрее, чем сделанная работа
+function forkReadLevel($) {
+  return $ >= 30e6 ? "hot" : $ >= 15e6 ? "warm" : $ >= 10e6 ? "soft" : "none";
+}
+function forkCompactHint($) {
+  let J = forkReadLevel($);
+  if (J === "none") return null;
+  return F(
+    "span",
+    {
+      className: `forkCompactHint forkCompactHint-${J}`,
+      title:
+        `Отрезок прочитал из кэша ${($ / 1e6).toFixed(1)}M.\n` +
+        (J === "hot"
+          ? "Дальше цена хода растёт быстрее сделанной работы — сжимайся."
+          : J === "warm"
+            ? "Пора сжиматься: контекст идёт к 233h."
+            : "Скоро пора: контекст идёт к 190h.") +
+        "\nЧтение растёт квадратично — удвоение контекста учетверяет счёт.",
+      children: "Compact Recommend",
+    },
+    "hint",
+  );
+}
+
+// форк: удалённое управление — справа в той же строке. Тумблер спрятан в меню,
+// а знать, включено ли оно, надо на виду: включённое означает, что в сессию
+// смотрят и пишут снаружи. Зелёным горит только «включено» — серым состоянием
+// покоя цвет не тратим, иначе зелёный перестаёт что-либо значить.
+function forkRemote($) {
+  let J = $.remoteControlState.value?.status ?? "disconnected",
+    Z = J !== "disconnected";
+  return F(
+    "span",
+    {
+      className: "forkRemote" + (Z ? " forkRemoteOn" : ""),
+      title: `Remote Control: ${J}`,
+      children: `Remote Control — ${Z ? "Enabled" : "Disabled"}`,
+    },
+    "rc",
+  );
+}
+function forkHud({ session: $ }) {
+  // Окна лимита сами в вебвью не приезжают: апстрим спрашивает их у хоста
+  // только когда открыта панель «Usage» (requestUsageUpdate не звался ниоткуда),
+  // а полоса под вводом видна всегда. Спрашиваем сами — сразу и раз в минуту.
+  // Минуты хватает: время до сброса и так показывается с точностью до минуты.
+  e(() => {
+    let f0 = () => {
+      $.requestUsageUpdate?.().catch(() => {});
+    };
+    f0();
+    let d0 = setInterval(f0, 60000);
+    return () => clearInterval(d0);
+  }, [$]);
+  // 2.1.260 убрал у сессии сигналы utilization и utilizationError. Окна лимита
+  // теперь лежат в модульном сигнале aG (:175220), куда их кладёт сообщение
+  // panel_usage_update через DC (:175240). Форма другая, чем была в 2.1.247:
+  // ключи змейкой — five_hour / seven_day / seven_day_overage_included, доля
+  // уже нормирована в 0..1, а resetsAt — СЕКУНДЫ эпохи, не миллисекунды и не
+  // строка (extension.js, Ir/OC$ :139787). Отсюда и умножение на 1000 ниже.
+  let J = $.forkUsage.value,
+    Y = $.usageData.value,
+    X = aG.value,
+    d5 = X?.five_hour,
+    d7 = X?.seven_day,
+    Q = [];
+  // В чужой ленте полоса говорит про ЧУЖОЙ счёт — и говорит об этом вслух.
+  // Смотреть в ленту агента и видеть при этом свои числа означало бы читать их
+  // как его: цифры без хозяина хуже отсутствующих.
+  //
+  // Окна лимита подмене не подлежат: они про учётную запись целиком, а не про
+  // сессию, и у подагента своих нет.
+  let n1 = $.forkFocus.value,
+    m1 = n1 ? $.forkAgents.value.get(n1) : null;
+  if (n1)
+    Q.push(
+      F(
+        "span",
+        {
+          className: "forkMeter forkMeterAgent",
+          title:
+            "Открыта лента подагента: слева его собственный счёт, не мой.\n" +
+            "Окна лимита общие — они про учётную запись, а не про сессию.",
+          children: "лента агента",
+        },
+        "lane",
+      ),
+    );
+  if (m1) {
+    if (m1.ctxUsed && Y.contextWindow)
+      Q.push(
+        forkMeter({
+          key: "ctx",
+          label: "Контекст агента",
+          pct: forkPct(m1.ctxUsed, Y.contextWindow),
+          title:
+            `${forkNum(m1.ctxUsed)} / ${forkNum(Y.contextWindow)} токенов контекста подагента\n` +
+            forkUsageTitle(forkAgentSum(m1)),
+        }),
+      );
+  } else if (!n1 && J.ctxUsed && Y.contextWindow)
+    Q.push(
+      forkMeter({
+        key: "ctx",
+        label: "Context",
+        pct: forkPct(J.ctxUsed, Y.contextWindow),
+        title: `${forkNum(J.ctxUsed)} / ${forkNum(Y.contextWindow)} токенов контекста`,
+      }),
+    );
+  let Z = forkUtil(d5?.utilization);
+  if (Z !== void 0)
+    Q.push(
+      forkMeter({
+        key: "5h",
+        label: "Usage",
+        pct: Z,
+        title: d5.resetsAt
+          ? `пятичасовое окно подписки, сброс через ${forkUntilReset(d5.resetsAt * 1000)}`
+          : "пятичасовое окно подписки",
+        tail: d5.resetsAt
+          ? `(${forkUntilReset(d5.resetsAt * 1000)} / 5h)`
+          : void 0,
+      }),
+    );
+  let G = forkUtil(d7?.utilization);
+  if (G !== void 0)
+    Q.push(
+      forkMeter({
+        key: "7d",
+        label: "",
+        pct: G,
+        title: d7.resetsAt
+          ? `недельное окно, сброс через ${forkUntilReset(d7.resetsAt * 1000)}`
+          : "недельное окно",
+        tail: d7.resetsAt
+          ? `(${forkUntilReset(d7.resetsAt * 1000)} / 7d)`
+          : "(7d)",
+      }),
+    );
+  // Ни одного окна лимита — говорим ПОЧЕМУ, а не молчим. Молчащая полоса
+  // неотличима от оборванной проводки, и именно это делает её бесполезной:
+  // «ничего нет» может значить и «расширение не вошло под подпиской», и
+  // «запрос не ушёл», а лечится это двумя совершенно разными способами.
+  //
+  // Окна берутся у /api/oauth/usage и только при входе через Claude AI. В
+  // 2.1.260 причину отказа вебвью больше не показывают: unavailableReason и
+  // сигнал utilizationError упразднены, хост в этом случае просто не шлёт
+  // panel_usage_update, и aG остаётся null. Поэтому различить «ещё не
+  // ответили» и «не положено» здесь нечем — говорим то, что знаем точно.
+  if (Z === void 0 && G === void 0)
+    Q.push(
+      F(
+        "span",
+        {
+          className: "forkMeter forkMeterMute",
+          title:
+            "Окна лимита расширение берёт у /api/oauth/usage и только при входе через Claude AI.\n" +
+            "Хост окон не присылал: либо ответа ещё не было, либо вход не по подписке.",
+          children: "Usage — нет данных",
+        },
+        "nousage",
+      ),
+    );
+  if (Q.length === 0) return null;
+  let q = [];
+  return (
+    Q.forEach((z, U) => {
+      if (U > 0)
+        q.push(
+          F("span", { className: "forkHudSep", children: "|" }, `sep${U}`),
+        );
+      q.push(z);
+    }),
+    // Справа одной группой: подсказка о сжатии и состояние удалённого
+    // управления. Группой, а не двумя прижатыми элементами: два поля с
+    // margin-left:auto делят свободное место пополам и расползаются.
+    q.push(
+      R(
+        "span",
+        {
+          className: "forkHudRight",
+          children: [forkCompactHint(J.seg.cacheRead), forkRemote($)],
+        },
+        "right",
+      ),
+    ),
+    F("div", { className: "forkHud", children: q })
+  );
+}
+
+// форк: счётчики справа от пути. Подписи — стрелки, как в Завре:
+//   контекст N M%   ↓ прочитано из кэша   ↑ записано в кэш   ↗ выход
+// Величины — за отрезок, то есть от последней складки: компакт их обнуляет,
+// и это единственный счёт, который компакт вообще трогает.
+// форк: те же счётчики, но за подагента, чью ленту мы смотрим. Отдельная
+// функция, а не флаг внутри forkTokens: у агента нет ни отрезков, ни складок, и
+// половина подписи своей полосы про него была бы просто неправдой.
+function forkAgentTokens($, J) {
+  let Z = forkAgentSum($),
+    Y = $.ctxUsed && J.contextWindow ? forkPct($.ctxUsed, J.contextWindow) : 0;
+  return R("span", {
+    className: "forkTokens forkTokensAgent",
+    title:
+      `Подагент: ${$.turns} ${forkPlural($.turns, "ход", "хода", "ходов")}\n` +
+      forkUsageTitle(Z) +
+      `\nВызовов инструментов ${forkNum(Z.calls)} в ${forkNum(Z.rounds)} заход(ов), ` +
+      `самая большая пачка ${forkNum(Z.batchMax)}\n` +
+      "Счёт агента отдельный: в расход сессии его работа не входит.",
+    children: [
+      F("span", { className: "forkTokSeg", children: "агент" }),
+      $.ctxUsed
+        ? R("span", {
+            className: "forkTokCtx" + (Y >= 75 ? " forkTokCtxHigh" : ""),
+            children: [
+              "контекст ",
+              forkNum($.ctxUsed),
+              Y
+                ? F("span", { className: "forkTokCtxPct", children: `${Y}%` })
+                : null,
+            ],
+          })
+        : null,
+      F("span", {
+        className: `forkTokCache forkRead-${forkReadLevel(Z.cacheRead)}`,
+        children: `↓${forkNum(Z.cacheRead)}`,
+      }),
+      F("span", {
+        className: "forkTokCache forkTokCacheWrite",
+        children: `↑${forkNum(Z.cacheWrite)}`,
+      }),
+      F("span", { className: "forkTokOut", children: `↗${forkNum(Z.output)}` }),
+    ],
+  });
+}
+function forkTokens({ session: $ }) {
+  let J = $.forkUsage.value,
+    Z = $.usageData.value,
+    Y = J.seg;
+  // Открыта чужая лента — счётчики про агента, а не про меня.
+  let W = $.forkFocus.value,
+    K = W ? $.forkAgents.value.get(W) : null;
+  if (K) return forkAgentTokens(K, Z);
+  if (!J.turns) return null;
+  let X =
+    J.ctxUsed && Z.contextWindow ? forkPct(J.ctxUsed, Z.contextWindow) : 0;
+  return R("span", {
+    className: "forkTokens",
+    title:
+      `Отрезок ${J.segment}: ${J.segTurns} ход(ов), ${J.segGroups} цикл(ов)\n` +
+      `Прибавилось к разговору ${forkNum(forkAdded(Y))} ` +
+      `(${forkNum(Y.input)} свежих + ${forkNum(Y.cacheWrite)} записано в кэш)\n` +
+      `Прочитано из кэша ${forkNum(Y.cacheRead)} — весь разговор, посланный заново\n` +
+      `Выход ${forkNum(Y.output)}\n` +
+      `Вызовов инструментов ${forkNum(Y.calls)} в ${forkNum(Y.rounds)} заход(ов), ` +
+      `самая большая пачка ${forkNum(Y.batchMax)}\n` +
+      `За всю сессию: ↓${forkNum(J.sum.cacheRead)} ↑${forkNum(J.sum.cacheWrite)} ↗${forkNum(J.sum.output)}`,
+    children: [
+      J.ctxUsed
+        ? R("span", {
+            className: "forkTokCtx" + (X >= 75 ? " forkTokCtxHigh" : ""),
+            children: [
+              "контекст ",
+              forkNum(J.ctxUsed),
+              X
+                ? F("span", { className: "forkTokCtxPct", children: `${X}%` })
+                : null,
+            ],
+          })
+        : null,
+      F("span", {
+        className: `forkTokCache forkRead-${forkReadLevel(Y.cacheRead)}`,
+        children: `↓${forkNum(Y.cacheRead)}`,
+      }),
+      F("span", {
+        className: "forkTokCache forkTokCacheWrite",
+        children: `↑${forkNum(Y.cacheWrite)}`,
+      }),
+      F("span", { className: "forkTokOut", children: `↗${forkNum(Y.output)}` }),
+      J.segment > 1
+        ? F("span", {
+            className: "forkTokSeg",
+            children: `отрезок ${J.segment}`,
+          })
+        : null,
+    ],
+  });
+}
+
+// форк: путь для полоски над полем ввода. Домашний каталог сжимается в «~»,
+// длинный путь усекается слева — важен хвост, а не корень.
+function forkShortenPath($) {
+  let J = $.replace(/^\/home\/[^/]+(?=\/|$)/, "~").replace(/\/+$/, "");
+  if (J.length <= 44) return J;
+  let Z = J.split("/");
+  return "…/" + Z.slice(-2).join("/");
+}
 var EH0 = k0(function (
   {
     session: J,
@@ -264476,6 +266290,56 @@ var EH0 = k0(function (
         T5());
     };
   }, [Y]);
+  // форк: смена раскладки роняет фокус с поля ввода, и приходится кликать в
+  // него заново. Переключается раскладка модификаторами (Alt+Shift, Win+Space),
+  // окно на это коротко теряет фокус, а VS Code возвращает его вебвью, но не
+  // полю внутри — фокус остаётся «нигде», на body.
+  //
+  // Ловим два пути: возврат фокуса в окно и уход фокуса из поля в пустоту.
+  // Возвращаем только когда не сфокусировано ничего осмысленного: если фокус
+  // уехал в другой элемент — его увели намеренно, и мешать нельзя. Уход по
+  // щелчку мыши тоже не трогаем, иначе нельзя было бы ни выделить текст в
+  // ленте, ни увести фокус вообще: щелчок по неактивному месту сажает фокус
+  // ровно на body, и мы бы отбирали его назад вместе с выделением.
+  e(() => {
+    let P5 = !1,
+      A8 = 0,
+      B8 = () => {
+        P5 = !!M1.current && document.activeElement === M1.current;
+      },
+      C8 = () => {
+        if (!P5 || !M1.current) return;
+        P5 = !1;
+        let e5 = document.activeElement;
+        if (e5 && e5 !== document.body && e5 !== M1.current) return;
+        Y.safeFocus(M1.current);
+      },
+      D8 = () => {
+        A8 = Date.now();
+      },
+      E8 = (e5) => {
+        if (e5.target !== M1.current || e5.relatedTarget) return;
+        if (Date.now() - A8 < 400) return;
+        setTimeout(() => {
+          if (!M1.current || !document.hasFocus()) return;
+          let g5 = document.activeElement;
+          if (g5 && g5 !== document.body) return;
+          Y.safeFocus(M1.current);
+        }, 0);
+      };
+    return (
+      window.addEventListener("blur", B8),
+      window.addEventListener("focus", C8),
+      document.addEventListener("pointerdown", D8, !0),
+      document.addEventListener("focusout", E8, !0),
+      () => {
+        (window.removeEventListener("blur", B8),
+          window.removeEventListener("focus", C8),
+          document.removeEventListener("pointerdown", D8, !0),
+          document.removeEventListener("focusout", E8, !0));
+      }
+    );
+  }, [Y]);
   let w5 = J.currentModelSupportsEffort.value && J.effortLevel.value,
     H2 = !0,
     i2 = !0,
@@ -264634,6 +266498,46 @@ var EH0 = k0(function (
               })
             : null,
           null,
+          // форк: рабочий каталог сессии. Апстрим не показывает его нигде, кроме
+          // баннера воркtree, а тот виден только когда путь отличается от корня окна.
+          R("div", {
+            className: "forkCwdRow",
+            children: [
+              J.cwd.value
+                ? R("button", {
+                    type: "button",
+                    className: "forkCwdStrip forkCwdStripEditable",
+                    title: `${J.cwd.value}\n\nВыбрать каталог — рядом заведётся новая сессия в нём,\nэта останется в списке нетронутой.`,
+                    onClick: () => {
+                      // Ошибку не глотаем: молчащая кнопка неотличима от
+                      // сломанной, и отладка превращается в гадание.
+                      J.forkChangeCwd().catch((P1) => {
+                        void J.showNotification(
+                          `Не удалось сменить каталог: ${P1 instanceof Error ? P1.message : String(P1)}`,
+                          "error",
+                        );
+                      });
+                    },
+                    children: [
+                      // Путь, ветка и знак «завести рядом» — три разные вещи, и
+                      // одним серым они читаются как одна строка мелким шрифтом.
+                      F("span", {
+                        className: "forkCwdPath",
+                        children: forkShortenPath(J.cwd.value),
+                      }),
+                      J.gitBranch.value
+                        ? R("span", {
+                            className: "forkCwdBranch",
+                            children: ["  ⑂ ", J.gitBranch.value],
+                          })
+                        : null,
+                      F("span", { className: "forkCwdPlus", children: "  ＋" }),
+                    ],
+                  })
+                : null,
+              F(forkTokens, { session: J }), // форк: контекст и кэш за отрезок
+            ],
+          }),
           F("form", {
             onSubmit: e0,
             children: R("fieldset", {
@@ -264909,6 +266813,8 @@ var EH0 = k0(function (
               ],
             }),
           }),
+          F(forkHud, { session: J }), // форк: контекст и окна лимита
+          F(forkAgentBar, { session: J }), // форк: агенты и переключение
         ],
       }),
       null,
@@ -267509,13 +269415,25 @@ function pH0({
         }),
       ],
     });
-  let X9 = U1({ count: 0, groups: [] }),
-    T3 = $.messages.value,
+  let X9 = U1({ count: 0, groups: [], focus: null }),
+    // форк: смотрим либо свою ленту, либо ленту одного агента — целиком
+    T3 = forkFocusMessages($.messages.value, $.forkFocus.value),
     j4;
-  if (T3.length > X9.current.count && X9.current.count > 0)
+  // Досборка групп по хвосту верна ровно при одном условии: лента та же самая и
+  // только доросла. Апстриму этого хватало — лента у него одна и она не
+  // меняется, а лишь удлиняется. С переключением лент условие ломается: уходя
+  // из ленты агента обратно к себе, мы получаем ДРУГОЙ список, который к тому
+  // же обычно длиннее — и признак «стало больше» врёт. Тогда к старым группам
+  // (вызовам агента) дописывались мои сообщения, и агент оставался на экране
+  // навсегда. Поэтому фокус входит в ключ кэша: сменился — пересчёт целиком.
+  if (
+    $.forkFocus.value === X9.current.focus &&
+    T3.length > X9.current.count &&
+    X9.current.count > 0
+  )
     j4 = vz0(T3, X9.current.groups);
   else j4 = Eo(T3);
-  X9.current = { count: T3.length, groups: j4 };
+  X9.current = { count: T3.length, groups: j4, focus: $.forkFocus.value };
   let a6 = J.focusViewEnabled,
     z$ = b5(() => {
       let q1 = new Map();
@@ -267526,7 +269444,14 @@ function pH0({
       };
     }, [J]),
     x8 = a6
-      ? DL1(T3, $.busy.value, z$, $.teleportedMessageCount.value ?? 0)
+      ? DL1(
+          T3,
+          $.busy.value,
+          z$,
+          // Счёт телепортированных сообщений считает по НАШЕЙ ленте; в чужой
+          // его индексы ничего не значат.
+          $.forkFocus.value ? 0 : ($.teleportedMessageCount.value ?? 0),
+        )
       : null,
     KZ = x8 !== null ? $.subagentTasks.value : null,
     c = x8 !== null && KZ !== null ? NL1(x8, KZ.values()) : void 0,
@@ -268504,7 +270429,10 @@ function Kt($, J, Z, Y, X = !1, Q, G, z, q, U) {
       Z,
     );
   }
-  if (J.type === "meta") return F(m85, { message: J }, Z);
+  if (J.type === "meta")
+    return forkIsNote(J)
+      ? F(forkNoteRow, { message: J }, Z)
+      : F(m85, { message: J }, Z);
   if (J.type === "compact") return F(jz0, { message: J, context: Y }, Z);
   if (J.type === "refusal_fallback")
     return F(KU0, { message: J, session: $ }, Z);
@@ -270406,6 +272334,15 @@ var V95 = k0(function (
             className: H5.sessionTime,
             children: K95(J.lastModifiedTime.value),
           }),
+          // форк: каталог сессии. Апстрим показывает его только для воркtree,
+          // и по списку не понять, где именно сессия была запущена.
+          J.cwd.value
+            ? F("span", {
+                className: "forkSessionCwd",
+                title: J.cwd.value,
+                children: forkShortenPath(J.cwd.value),
+              })
+            : null,
           !G &&
             !S &&
             (j || w || N) &&
