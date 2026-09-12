@@ -16,8 +16,9 @@
       "with": "- Never end a git commit message with a trailer. Commits here are authored by the user alone: no Co-Authored-By line, no session link, no generated-by note belongs in one. The harness default that follows is shown only so that you recognise it and leave it out:"
     }
   ],
+  "note_переезд_269": "Из трёх путей остался ОДИН, и он не там, где проба привыкла смотреть. С 2.1.267 приказ про подпись приходит не описанием Bash, а заметкой в разговоре; к 2.1.269 из описания Bash он пропал совсем — проба 12.09.2026 не нашла в `tools` ни `End git commit messages with`, ни нашей замены, зато нашла её в `messages`. Якорь при этом по-прежнему сходится 3 раза, то есть правка на месте, а подвела именно проверка. Отсюда `where: \"messages\"`",
   "verify": {
-    "tool": "Bash",
+    "where": "messages",
     "marker": "Never end a git commit message with a trailer",
     "modes": [
       "default"

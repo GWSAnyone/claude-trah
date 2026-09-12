@@ -10,12 +10,13 @@
   "note_переезд_251": "Якорь переписан 29.08.2026 под 2.1.251. Имена сдвинулись целиком: `a`→`k` (текст кадра), `d`→`w`, `f`→`p`, `h`→`y`, `m`→`u` (тот самый `selfSent`). Форма 2.1.247 была `value:a,uuid:d,priority:f,origin:h,skipSlashCommands:!0,isMeta:!0}`. Закрывающая скобка из якоря УБРАНА намеренно: в 2.1.251 за `isMeta:!0` идёт ещё `skipAttachments:!0`, и якорь со скобкой не совпал бы. В 2.1.251 у кадра появился и `verifiedPeerProcStart` — проверка родства стала строже, нашей ветки это не касается",
   "note_переезд_260": "Якорь переписан 04.09.2026 под 2.1.260. Сдвинулось ОДНО имя: текст сообщения `k` → `E`, а `k` теперь зовётся сам объект кадра. `w`, `p`, `y` и `u` (тот самый selfSent) остались как были — видно по соседству `{selfSent:u},...wAe(e.msg_id)&&{msg_id:e.msg_id}`, кадр по-прежнему `e`. Смысл правки не менялся",
   "note_переезд_263": "Якорь переписан 07.09.2026 под 2.1.263. Снова сдвинулось ОДНО имя: приоритет `p` → `m`. `E`, `w`, `y` и `u` (selfSent) остались как были, кадр по-прежнему `e` — видно по соседству `verifiedPeerProcStart:i},...u&&{selfSent:u},...ive(e.msg_id)&&{msg_id:e.msg_id}`. Место то же: обработчик кадра в uds-messaging, из шести вхождений `skipSlashCommands:!0,isMeta:!0` в бинарнике наше единственное с `uuid:` и `origin:` в объекте. Смысл правки не менялся",
+  "note_переезд_269": "Якорь переписан 12.09.2026 под 2.1.269. Сдвинулось ЧЕТЫРЕ имени, причём два поменялись ролями: текст сообщения `E` → `v`, uuid `w` → `y`, origin `y` → `w`, а `selfSent` `u` → `f`. Приоритет `m` остался. Кадр по-прежнему `e` — видно по соседству `e.file_attachments`, `e.from??\"unknown\"`, `...MIe(e.msg_id)&&{msg_id:e.msg_id}` и по `...f&&{selfSent:f}`. `u` в 2.1.269 занято другим (`using u=E.queueing`), так что старое имя нельзя было оставить ни в коем случае. Сторож объявленного id жив: `function Te(e){if(e.session_id!==void 0&&e.session_id!==X())return t(...session_id mismatch...),!1;` — вторая половина условия по-прежнему опирается на проверенный id, а не на слово отправителя",
   "edits": [
     {
       "op": "replace",
-      "anchor": "value:E,uuid:w,priority:m,origin:y,skipSlashCommands:!0,isMeta:!0",
+      "anchor": "value:v,uuid:y,priority:m,origin:w,skipSlashCommands:!0,isMeta:!0",
       "count": 1,
-      "with": "value:E,uuid:w,priority:m,origin:y,skipSlashCommands:!((u===!0||typeof e.session_id===\"string\")&&typeof E===\"string\"&&(E===\"/compact\"||E.startsWith(\"/compact \"))),isMeta:!0"
+      "with": "value:v,uuid:y,priority:m,origin:w,skipSlashCommands:!((f===!0||typeof e.session_id===\"string\")&&typeof v===\"string\"&&(v===\"/compact\"||v.startsWith(\"/compact \"))),isMeta:!0"
     }
   ]
 }
