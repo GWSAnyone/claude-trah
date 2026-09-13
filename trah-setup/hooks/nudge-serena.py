@@ -162,7 +162,8 @@ BLOCK_WRITE_MSG = (
 BULK_MSG = (
     "Inline program of {n} lines: put it in a file (Write) and run it by name. "
     "The argument text is re-sent with the whole context on every following turn; "
-    "a file is paid for once and re-runs cost nothing."
+    "a file is paid for once and re-runs cost nothing. "
+    "JSON from curl or an API: pipe it to jq with one filter instead of a program."
 )
 
 # Программа, набранная в аргументе, дороже своего вывода: 20.08.2026 она стоила

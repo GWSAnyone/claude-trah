@@ -101,7 +101,7 @@ def main() -> int:
         ("mcp__serena__read_memory", "", False),     # «read» в списке несимвольных
         ("mcp__serena__get_diagnostics_for_file", "", False),
         ("Grep", "", True),
-        ("Read", "", True),
+        ("Read", "", False),                          # отбивает guard-read-code.py
         ("Write", "", False),
         ("Edit", "", False),
         ("ToolSearch", "", False),

@@ -61,6 +61,13 @@ file": a tail cut once erased 291 lines. `replace_symbol_body` cannot overshoot.
 
 ## 3. Write «Где я сейчас»
 
+The time for its heading and the pointer path for step 4 come from one call;
+two lone calls cost two round trips:
+
+```bash
+date '+%F %H:%M'; python3 ~/.claude/hooks/checkpoint.py path
+```
+
 Replacing the previous such block:
 
 ```markdown

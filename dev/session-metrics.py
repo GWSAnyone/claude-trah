@@ -172,6 +172,11 @@ def разбор(путь: Path, с_даты: str | None, с_подагента�
     except OSError:
         return [], [], []
 
+    # Стенограмма из VS Code несёт копии прежней истории: в сессии Э3
+    # (13.09.2026) 36 612 записей из 53 761 были повторами по `uuid`. Без отсева
+    # повтор с тем же `requestId` дописывал вызовы в уже собранную пачку и
+    # задваивал ошибки и запросы владельца.
+    виденные: set[str] = set()
     for строка in строки:
         строка = строка.strip()
         if not строка:
@@ -180,6 +185,11 @@ def разбор(путь: Path, с_даты: str | None, с_подагента�
             з = json.loads(строка)
         except json.JSONDecodeError:
             continue
+        uuid = з.get("uuid")
+        if uuid:
+            if uuid in виденные:
+                continue
+            виденные.add(uuid)
         тип = з.get("type")
         if тип not in ("assistant", "user"):
             continue

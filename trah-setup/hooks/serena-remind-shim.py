@@ -117,7 +117,11 @@ def upstream_can_act(tool_name: str, tool_input) -> bool:
         return False
     if "serena" in name:
         return symbolic(name)
-    if name in ("grep", "read") or "read_file" in name:
+    # Встроенный Read сюда больше не пускается. В сессии Э3 (08–13.09.2026)
+    # счётчик апстрима 38 раз ответил на Read ошибкой — ход потрачен, а Read шёл
+    # дальше, поведение не менялось. Крупное чтение кода теперь отбивает
+    # guard-read-code.py, узко и с выходом повтором.
+    if name == "grep" or "read_file" in name:
         return True
     первое = command_name(tool_input)
     return bool(первое) and (первое in _GREP_SHELL or первое in _READ_SHELL)

@@ -79,6 +79,11 @@
             "type": "command",
             "command": "@PY@ @HOME@/.claude/hooks/nudge-compact.py",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/nudge-wait.py",
+            "timeout": 10
           }
         ]
       }
@@ -105,6 +110,11 @@
           {
             "type": "command",
             "command": "@PY@ @HOME@/.claude/hooks/batch-meter.py",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/nudge-batch.py",
             "timeout": 5
           },
           {
