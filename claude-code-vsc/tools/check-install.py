@@ -3,6 +3,7 @@
 
 Печатает только выводы, не содержимое файлов.
 """
+import glob
 import json
 import os
 import re
@@ -32,8 +33,17 @@ if os.path.exists(s):
 else:
     print("  НЕТ ФАЙЛА", s)
 
-print("== состав установленного 2.1.260 ==")
-root = os.path.join(home, ".vscode/extensions/anthropic.claude-code-2.1.260")
+# Каталог берётся по новейшей установленной версии: зашитый 2.1.260 пережил
+# переезд на 2.1.269 и падал на открытии extension.js.
+dirs = sorted(
+    glob.glob(os.path.join(home, ".vscode/extensions/anthropic.claude-code-*")),
+    key=lambda d: [int(x) for x in re.findall(r"\d+", os.path.basename(d))],
+)
+if not dirs:
+    print("== расширение не установлено ==")
+    raise SystemExit(1)
+root = dirs[-1]
+print(f"== состав установленного {os.path.basename(root)} ==")
 for rel in ("extension.js", "webview/index.js", "webview/index.css",
             "package.json", "resources/native-binary/claude"):
     f = os.path.join(root, rel)

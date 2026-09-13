@@ -186529,7 +186529,8 @@ class yQ {
       this.turnHadReplyFrame = !0;
     if ($.type === "stream_event")
       ((this.hasStreamingMessages = !0),
-        this.assembler.processStreamEvent($.event, $.parent_tool_use_id));
+        this.assembler.processStreamEvent($.event, $.parent_tool_use_id),
+        this.forkNoteDelta($.event, $.parent_tool_use_id));
     else if ($.type === "assistant") {
       if (
         $.error === "authentication_failed" &&
@@ -187041,6 +187042,25 @@ class yQ {
         seg: Q(Z.seg),
         sum: Q(Z.sum),
       }));
+  }
+  // форк: итоговый выход хода приезжает ТОЛЬКО событием message_delta.
+  //
+  // События assistant CLI шлёт по одному на блок, в момент конца блока, и
+  // `usage` в каждом — снимок начала ответа: выход в нём 5–10 токенов при
+  // настоящих сотнях. Взятие максимума в forkAddCalls этого не лечило, потому
+  // что ни одно событие assistant итога не несёт. Он есть только в
+  // message_delta, а тот приходит после последнего блока, когда ход уже
+  // опознан по id, — значит, досчитывается в тот же ход. Сводка выкладывается
+  // позже, по следующему id или по result, и выходит сразу верной.
+  forkNoteDelta($, J) {
+    if ($.type !== "message_delta" || !$.usage) return;
+    if (!J) {
+      if (this.forkLastMessageId)
+        this.forkAddCalls({ usage: $.usage, content: [] });
+      return;
+    }
+    let Z = this.forkAgents.value.get(J);
+    if (Z?.id) this.forkNoteAgentTurn({ id: Z.id, usage: $.usage, content: [] }, J);
   }
   // форк: ход подагента закрыт — его сообщение принесло свой usage.
   //
