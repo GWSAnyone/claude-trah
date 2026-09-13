@@ -425,6 +425,21 @@ if [ "$TRAH_WORD" = 1 ]; then
             "claude trah: патченой сборки нет ($SHARE_DIR/trah/current) — запускаю штатную" >&2
     fi
 
+    # Разделы `# Delivering work` и `# Corrections` — принудительно.
+    #
+    # Оба штатные, текст Anthropic, и оба закрыты вентилем: сборщик промпта
+    # включает их по `opus_5_prompt_bundle` модели или по признаку
+    # `tengu_bison_cairn`/`tengu_larch_cistern`, а решает это СЕРВЕР. 12.09.2026
+    # поимка живой сессии `claude trah` через прокси: без переменных промпт
+    # 31 814 байт и обоих разделов нет, с переменными — 35 608 байт и оба на
+    # месте. В кэше `~/.claude.json` у сервера стояло `tengu_bison_cairn = false`.
+    # Без раздела молча не работает кусок `sys-delivering-work-at-full-scope`:
+    # он вставляется в текст раздела.
+    #
+    # Заданное снаружи значение не трогаем: `=0` выключает раздел на один запуск.
+    : "${CLAUDE_CODE_BISON_CAIRN:=1}" "${CLAUDE_CODE_LARCH_CISTERN:=1}"
+    export CLAUDE_CODE_BISON_CAIRN CLAUDE_CODE_LARCH_CISTERN
+
     trah_mcp_config && TRAH_ARGS+=(--mcp-config "$TRAH_MCP")
 
     # Разрешающий флаг — как у службы.

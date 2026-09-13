@@ -122,6 +122,34 @@ def main() -> int:
         check(argv(p) == ["NUDGE_SERENA_MODE=block"],
               "режим trah тоже с block", str(argv(p)))
 
+        # ── режим trah включает разделы Delivering work и Corrections ────────
+        #
+        # Сервер 12.09.2026 перестал включать их свежим сессиям, и кусок
+        # `sys-delivering-work-at-full-scope` молча умер: он встаёт в текст
+        # раздела. Переменные ставятся только в режиме trah и не перебивают
+        # значение, заданное снаружи.
+        sections_probe = write(os.path.join(root, "fake", "claude-sections"),
+                               "#!/usr/bin/env bash\n"
+                               "printf 'BISON=%s LARCH=%s\\n' "
+                               "\"${CLAUDE_CODE_BISON_CAIRN:-НЕТ}\" "
+                               "\"${CLAUDE_CODE_LARCH_CISTERN:-НЕТ}\"\n",
+                               0o755)
+        p = box.run(["trah", "-p", "x"], cwd=outside_probe,
+                    env_extra={"CLAUDE_WRAPPER_TARGET": sections_probe})
+        check(argv(p) == ["BISON=1 LARCH=1"],
+              "режим trah включает оба раздела", str(argv(p)))
+
+        p = box.run(["-p", "x"], cwd=outside_probe,
+                    env_extra={"CLAUDE_WRAPPER_TARGET": sections_probe})
+        check(argv(p) == ["BISON=НЕТ LARCH=НЕТ"],
+              "обычный запуск разделы не трогает", str(argv(p)))
+
+        p = box.run(["trah", "-p", "x"], cwd=outside_probe,
+                    env_extra={"CLAUDE_WRAPPER_TARGET": sections_probe,
+                               "CLAUDE_CODE_BISON_CAIRN": "0"})
+        check(argv(p) == ["BISON=0 LARCH=1"],
+              "заданное снаружи значение сильнее умолчания", str(argv(p)))
+
         p = box.run(["-p", "x"], cwd=outside_probe,
                     env_extra={"CLAUDE_WRAPPER_TARGET": env_probe,
                                "NUDGE_SERENA_MODE": "warn"})
