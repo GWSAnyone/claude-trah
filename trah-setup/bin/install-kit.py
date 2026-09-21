@@ -681,7 +681,7 @@ def доклад(отчёт: Отчёт, есть: dict) -> None:
         print(f"  {'есть ' if путь else 'НЕТ  '} {имя}")
     if not есть["serena"]:
         print("\n  ⚠ Serena не найдена. Без неё не работает половина комплекта:")
-        print("    uv tool install --from git+https://github.com/oraios/serena serena-agent")
+        print("    python3 trah-setup/bin/serena-patch.py install")
         print("    claude mcp add serena -s user -- ~/.local/bin/serena start-mcp-server "
               "--context claude-code")
 

@@ -161,6 +161,7 @@ Bash поднималось шесть процессов python: 162 мс, из
 
 | | что |
 |---|---|
+| Serena с патчами | ставится `bin/serena-patch.py` на коммит апстрима из `serena/upstream.txt`, четыре наших патча из `serena/patches/` накладываются поверх с `--fuzz=0`. Переезд — `serena-patch.py upgrade [коммит]`: патчи всухую на исходники цели, установка, наложение, живая проверка; сорвалось — откат на прежний прицел |
 | MCP-серверы (4) | `serena` (символьный слой), `sequential-thinking`, `context7` (документация библиотек), `playwright` (браузер) |
 | Плагины | `code-review`, `claude-hud` (строка состояния). `claude-security` ВЫКЛЮЧЕН 30.08: 840 токенов на сессию за конвейер, который у нас не запустится — он ходит через `Workflow`, а `enableWorkflows` стоит `false` и `Workflow` в запретах |
 | Переменные | `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1` (агент не зовёт агента), `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=6` |

@@ -90,8 +90,16 @@ cd ~/claude-trah
 будут напоминать об инструментах, которых нет.
 
 ```bash
-uv tool install --from git+https://github.com/oraios/serena serena-agent
+python3 trah-setup/bin/serena-patch.py install
 ```
+
+Это тот же `uv tool install` из git апстрима, только закреплённый на коммите из
+`trah-setup/serena/upstream.txt`, и сразу с наложенными патчами из
+`trah-setup/serena/patches/`. Патчей четыре: markdown-правки не склеивают
+разделы, регэксп агента прерывается по таймауту, а не вешает сервер, `remind`
+видит `Bash(grep …)`, YAML-конфиг не размножает комментарии. Serena, уже
+стоящую на другом коммите, команда не трогает, а говорит, как переехать:
+`serena-patch.py upgrade`.
 
 Одной установкой приезжают обе точки входа — `serena` и `serena-hooks`; на этой
 машине обе легли симлинками в `~/.local/bin`. Если `serena-hooks` у вас не
