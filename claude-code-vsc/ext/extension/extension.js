@@ -160856,6 +160856,12 @@ class oA {
           $.request.mode,
           $.request.userInitiated,
         );
+      case "fork_pick_directory":
+        return this.forkPickDirectory($.request.current);
+      case "fork_background_tasks":
+        return this.forkBackgroundTasks($.channelId, $.request.toolUseId);
+      case "fork_stop_task":
+        return this.forkStopTask($.channelId, $.request.taskId);
       case "persist_session_permission_mode":
         return this.persistSessionPermissionMode(
           $.request.sessionId,
@@ -161402,6 +161408,9 @@ class oA {
           customTitle: B.customTitle,
           gitBranch: B.gitBranch,
           worktree: Dk(B.cwd),
+          // форк: апстрим доносил каталог только косвенно, через worktree и
+          // флаг isCurrentWorkspace. Списку нужен сам путь.
+          cwd: B.cwd,
           isCurrentWorkspace: Br$(B.cwd, this.cwd),
           ...H,
         };
@@ -161931,6 +161940,44 @@ class oA {
   }
   getAssetUris() {
     return kh$();
+  }
+  // форк: базовая заглушка. Диалог выбора каталога есть только у хоста VS Code,
+  // остальные наследники xO (JetBrains) отвечают «не поддерживается».
+  async forkPickDirectory($) {
+    return { type: "fork_pick_directory_response", path: void 0 };
+  }
+  // форк: увести выполняющийся инструмент в фон — то же, что Ctrl+B в
+  // терминале. С tool_use_id уходит одна задача, без него — все передние
+  // разом; так это описывает сам CLI в схеме управляющего запроса.
+  async forkBackgroundTasks($, Q) {
+    return this.withChannel($, async (J) => {
+      try {
+        return {
+          type: "fork_background_tasks_response",
+          backgrounded: await J.query.backgroundTasks(Q),
+        };
+      } catch (X) {
+        return (
+          this.logger.error(`Failed to background tasks: ${X}`),
+          { type: "fork_background_tasks_response", backgrounded: !1 }
+        );
+      }
+    });
+  }
+  async forkStopTask($, Q) {
+    return this.withChannel($, async (J) => {
+      try {
+        return (
+          await J.query.stopTask(Q),
+          { type: "fork_stop_task_response", success: !0 }
+        );
+      } catch (X) {
+        return (
+          this.logger.error(`Failed to stop task: ${X}`),
+          { type: "fork_stop_task_response", success: !1 }
+        );
+      }
+    });
   }
   async setPermissionMode($, Q, X) {
     if (!Wr$(Q))
@@ -162771,7 +162818,18 @@ class oA {
     return typeof $ === "string" ? $ : void 0;
   }
   thinkingSummariesDefaultOn() {
-    return !1;
+    // форк: выжимка размышления просится ВСЕГДА.
+    //
+    // Апстрим отвечает здесь «нет», и оттого `Lc()` не ставит `display`, а без
+    // него в запуск не уходит `--thinking-display`. Блок размышления при этом
+    // приезжает исправно — но с пустым текстом и подписью в тысячу байт:
+    // проверено на 646 блоках записей, суммарно ноль знаков. Выглядит это как
+    // «модель ничего не отдаёт», хотя рычаг всё это время был на нашей стороне.
+    // Выжимку делает API, и просит её ровно этот флаг.
+    //
+    // Явная настройка `showThinkingSummaries` сильнее: `Lc` берёт её как
+    // `Q ?? J`, так что поставленное человеком `false` по-прежнему выключает.
+    return !0;
   }
   remoteControlAutoEnableOn($) {
     return co$($);
@@ -171517,6 +171575,23 @@ class Z7 extends oA {
       throw $;
     }
   }
+  // форк: переопределяет заглушку из xO. Каталог выбирается родным диалогом
+  // VS Code; сессия перезапустится в нём силами launchClaude(), который и так
+  // передаёт cwd при подъёме канала.
+  async forkPickDirectory($) {
+    let Q = await I$.window.showOpenDialog({
+      canSelectFiles: !1,
+      canSelectFolders: !0,
+      canSelectMany: !1,
+      title: "Рабочий каталог сессии",
+      openLabel: "Запустить здесь",
+      defaultUri: I$.Uri.file($ || this.cwd),
+    });
+    return {
+      type: "fork_pick_directory_response",
+      path: Q?.[0]?.fsPath,
+    };
+  }
   resolveClaudeBinary() {
     return g3$(this.context, g5(Z7.resolveShellPath(this.output)));
   }
@@ -172888,7 +172963,12 @@ function g5($) {
   let Q = o$4(G0("environmentVariables")),
     X = { ...process.env };
   if ($) X.PATH = $;
-  ((X.MCP_CONNECTION_NONBLOCKING = "true"), (X.CLAUDE_CODE_ENABLE_TASKS = "0"));
+  // форк: задачи включены. Апстрим гасил их здесь (CLAUDE_CODE_ENABLE_TASKS=0)
+  // потому, что вебвью нечем было их показать: ни списка фоновых задач, ни
+  // Ctrl+B. Теперь есть и то, и другое — строки агентов под полосой расхода и
+  // кнопка «в фон» на карточке. В самом CLI задачи включены по умолчанию:
+  // гасит их только явное «false», поэтому просто не трогаем переменную.
+  X.MCP_CONNECTION_NONBLOCKING = "true";
   for (let Y of Q) {
     if (Y.name === "CLAUDE_CONFIG_DIR" && Y.value === "") continue;
     if (Y.name) X[Y.name] = Y.value || "";
