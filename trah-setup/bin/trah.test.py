@@ -152,6 +152,40 @@ with tempfile.TemporaryDirectory() as tmp:
               trah.пути("1.2.3")[0] == "1.2.3")
     trah.ПИН = было_пин
 
+print("\nпереезд: сорванный шаг после сборки возвращает ссылку current")
+# 14.09.2026 переезд на 2.1.270 упал на доставке, а `current` остался на
+# недоставленной сборке — обёртка поднимала на ней новые сессии.
+with tempfile.TemporaryDirectory() as tmp:
+    было = (trah.ПИН, trah.ДОЛЯ, trah.check, trah.build, trah.verify, trah.проверки)
+    trah.ПИН = Path(tmp) / "version.txt"
+    trah.ПИН.write_text("1.0.0\n", encoding="utf-8")
+    trah.ДОЛЯ = Path(tmp)
+    ссылка = Path(tmp) / "trah" / "current"
+    ссылка.parent.mkdir()
+    ссылка.symlink_to("1.0.0")
+
+    def сборка(в: str) -> int:
+        ссылка.unlink()
+        ссылка.symlink_to(в)
+        return 0
+
+    trah.check = lambda в: 0
+    trah.build = сборка
+    for шаг in ("доставка", "наборы проверок"):
+        trah.verify = (lambda в: 1) if шаг == "доставка" else (lambda в: 0)
+        trah.проверки = (lambda: 1) if шаг == "наборы проверок" else (lambda: 0)
+        код = trah.upgrade("2.0.0")
+        проверить(f"сорвалась {шаг} — ссылка на прежней сборке",
+                  код == 1 and str(ссылка.readlink()) == "1.0.0", str(ссылка.readlink()))
+        проверить(f"сорвалась {шаг} — прицел не тронут",
+                  trah.ПИН.read_text(encoding="utf-8").strip() == "1.0.0")
+    trah.verify = lambda в: 0
+    trah.проверки = lambda: 0
+    проверить("удачный переезд — ссылка на новой сборке",
+              trah.upgrade("2.0.0") == 0 and str(ссылка.readlink()) == "2.0.0",
+              str(ссылка.readlink()))
+    trah.ПИН, trah.ДОЛЯ, trah.check, trah.build, trah.verify, trah.проверки = было
+
 print("\nскрипт правок: сверка и счёт промахов")
 # Проверяем НАСТОЯЩИМ узлом: скрипт исполняет node внутри tweakcc, и ошибка в
 # нём — это сорванная сборка, а не сорванный тест.

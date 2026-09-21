@@ -11,12 +11,15 @@
   "note_переезд_260": "Якорь переписан 04.09.2026 под 2.1.260. Сдвинулось ОДНО имя: текст сообщения `k` → `E`, а `k` теперь зовётся сам объект кадра. `w`, `p`, `y` и `u` (тот самый selfSent) остались как были — видно по соседству `{selfSent:u},...wAe(e.msg_id)&&{msg_id:e.msg_id}`, кадр по-прежнему `e`. Смысл правки не менялся",
   "note_переезд_263": "Якорь переписан 07.09.2026 под 2.1.263. Снова сдвинулось ОДНО имя: приоритет `p` → `m`. `E`, `w`, `y` и `u` (selfSent) остались как были, кадр по-прежнему `e` — видно по соседству `verifiedPeerProcStart:i},...u&&{selfSent:u},...ive(e.msg_id)&&{msg_id:e.msg_id}`. Место то же: обработчик кадра в uds-messaging, из шести вхождений `skipSlashCommands:!0,isMeta:!0` в бинарнике наше единственное с `uuid:` и `origin:` в объекте. Смысл правки не менялся",
   "note_переезд_269": "Якорь переписан 12.09.2026 под 2.1.269. Сдвинулось ЧЕТЫРЕ имени, причём два поменялись ролями: текст сообщения `E` → `v`, uuid `w` → `y`, origin `y` → `w`, а `selfSent` `u` → `f`. Приоритет `m` остался. Кадр по-прежнему `e` — видно по соседству `e.file_attachments`, `e.from??\"unknown\"`, `...MIe(e.msg_id)&&{msg_id:e.msg_id}` и по `...f&&{selfSent:f}`. `u` в 2.1.269 занято другим (`using u=E.queueing`), так что старое имя нельзя было оставить ни в коем случае. Сторож объявленного id жив: `function Te(e){if(e.session_id!==void 0&&e.session_id!==X())return t(...session_id mismatch...),!1;` — вторая половина условия по-прежнему опирается на проверенный id, а не на слово отправителя",
+  "note_переезд_273": "Якорь переписан 16.09.2026 под 2.1.273. Сдвинулось ТРИ имени: текст сообщения `v` → `k`, uuid `y` → `w`, origin `w` → `S`. Приоритет `m` и `selfSent` `f` остались. Кадр по-прежнему `e`: `let y=typeof E.content===\"string\"?E.content:s,k=y` (с префиксом вложений `k=R(y,O.prefix)`), `let f=await le(n,r,d)`, `...f&&{selfSent:f}`. Сторож объявленного id жив: `if(!Te(e))return;` в начале обработчика, `Te` роняет кадр с `session_id mismatch`. Вхождение единственное",
+  "note_переезд_276": "Якорь переписан 18.09.2026 под 2.1.276. Текст сообщения `k` → `v`, приоритет `m` → `g`, `selfSent` `f` → `p`; uuid `w` и origin `S` остались. Видно по соседству: `let y=typeof k.content===\"string\"?k.content:s,v=y`, `let p=await le(n,r,d)`, `...p&&{selfSent:p}`. Сторож `if(!Te(e))return;` на месте, вхождение единственное",
+  "note_переезд_278": "Якорь переписан 21.09.2026 под 2.1.278. Текст сообщения `v` → `f`, origin `S` → `C`, `selfSent` `p` → `S`; uuid `w` и приоритет `g` остались. Видно по соседству: `let v=typeof u.content===\"string\"?u.content:k,f=v`, `let S=await le(n,r,d)`, `...S&&{selfSent:S}`. Сторож `if(!Te(e))return;` на месте, `Te` роняет кадр с `session_id mismatch`, вхождение единственное",
   "edits": [
     {
       "op": "replace",
-      "anchor": "value:v,uuid:y,priority:m,origin:w,skipSlashCommands:!0,isMeta:!0",
+      "anchor": "value:f,uuid:w,priority:g,origin:C,skipSlashCommands:!0,isMeta:!0",
       "count": 1,
-      "with": "value:v,uuid:y,priority:m,origin:w,skipSlashCommands:!((f===!0||typeof e.session_id===\"string\")&&typeof v===\"string\"&&(v===\"/compact\"||v.startsWith(\"/compact \"))),isMeta:!0"
+      "with": "value:f,uuid:w,priority:g,origin:C,skipSlashCommands:!((S===!0||typeof e.session_id===\"string\")&&typeof f===\"string\"&&(f===\"/compact\"||f.startsWith(\"/compact \"))),isMeta:!0"
     }
   ]
 }

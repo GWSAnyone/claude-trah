@@ -15,12 +15,6 @@
       "with": "tool for work you can finish yourself in a handful of tool calls, and never to verify or double-check your own work. Delegate only for large tasks that are genuinely independent and parallelizable, such as a wide multi-file investigation; if one subagent can complete the task, use one rather than several, and keep spawn counts low. Do not use workflows or deep-research unless the user, a CLAUDE.md file, or a skill asks for it"
     }
   ],
-  "verify": {
-    "where": "system",
-    "marker": "Delegate only for large tasks that are genuinely independent",
-    "modes": [
-      "default"
-    ]
-  }
+  "note_проба_снята": "16.09.2026, переезд на 2.1.273: проба доставки снята, потому что доставлять стало некуда. Раздел `opus5_reduced_delegation` эмитится только при `lcn(s)` — модель с `opus_5_prompt_bundle` и `tengu_fennel_godwit` не включён. В пойманном промпте пробы (`--model claude-opus-5`) нет ни нашего маркера, ни апстримного «Do not use the Agent tool», ни соседнего раздела Opus 5 «Writing for the user», причём ОДИНАКОВО на 2.1.269 (прошла 12.09) и на 2.1.273, и в живом промпте сессии тоже. То есть сменилось не бинарное, а серверное: набор промптов Opus 5 на этой машине сейчас не выдаётся. Якорь по-прежнему сверяется и кусок пишется. Цена: если сервер вернёт раздел, живость правки никто не проверит — вернуть блок `verify` с маркером `Delegate only for large tasks that are genuinely independent`, режим `default`"
 }
 ---
