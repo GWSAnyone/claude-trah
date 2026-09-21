@@ -60,6 +60,12 @@ class Sandbox:
         env = dict(os.environ)
         env.update({"HOME": self.home, "XDG_CACHE_HOME": self.cache})
         env.pop("CLAUDE_WRAPPER_TARGET", None)
+        # Набор гоняют и из сессии, которую подняла сама обёртка: её умолчания
+        # уже лежат в окружении, и проверка «обычный запуск их не ставит» видела
+        # бы их. Снаружи приходит только то, что тест задал в env_extra.
+        for name in ("CLAUDE_CODE_BISON_CAIRN", "CLAUDE_CODE_LARCH_CISTERN",
+                     "NUDGE_SERENA_MODE", "CLAUDE_CODE_MAX_TOOL_USE_CONCURRENCY"):
+            env.pop(name, None)
         if target == "fake":
             env["CLAUDE_WRAPPER_TARGET"] = self.fake
         elif target == "old":

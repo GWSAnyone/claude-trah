@@ -35,9 +35,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 хук.sockmsg.послать = lambda текст, *а, **к: отправлено.append(текст) or ""
 
 
-def пачка(ширина: int, session: str = "s1", **лишнее) -> int:
+def пачка(ширина: int, session: str = "s1", инструмент: str = "Bash", **лишнее) -> int:
     payload = {"session_id": session,
-               "tool_calls": [{"tool_name": "Bash"} for _ in range(ширина)], **лишнее}
+               "tool_calls": [{"tool_name": инструмент} for _ in range(ширина)], **лишнее}
     прежний = sys.stdin
     sys.stdin = io.StringIO(json.dumps(payload))
     try:
@@ -87,6 +87,30 @@ with tempfile.TemporaryDirectory() as d:
         пачка(1, session="s5")
     check("выключатель", len(отправлено) == 3, str(len(отправлено)))
     os.environ.pop("NUDGE_BATCH")
+
+    отправлено.clear()
+    for _ in range(8):
+        пачка(1, session="s6")
+    check("цепочка Bash — подсказка про &&", len(отправлено) == 1 and "&&" in отправлено[-1],
+          str(отправлено))
+    for _ in range(8):
+        пачка(1, session="s7", инструмент="mcp__serena__find_symbol")
+    check("цепочка чтений — подсказка про чтение",
+          len(отправлено) == 2 and "Most of them were reads" in отправлено[-1], str(отправлено))
+    for _ in range(8):
+        пачка(1, session="s8", инструмент="Edit")
+    check("цепочка правок — подсказка про правки",
+          len(отправлено) == 3 and "Most of them were edits" in отправлено[-1], str(отправлено))
+    for i in range(8):
+        пачка(1, session="s9", инструмент=("Bash", "Read", "Edit", "Agent")[i % 4])
+    check("смесь без большинства — без подсказки",
+          len(отправлено) == 4 and "Most of them" not in отправлено[-1], str(отправлено))
+    пачка(1, session="s10")
+    пачка(2, session="s10", инструмент="Read")
+    for _ in range(8):
+        пачка(1, session="s10", инструмент="Read")
+    check("широкая пачка стирает прежние имена",
+          len(отправлено) == 5 and "Most of them were reads" in отправлено[-1], str(отправлено))
 
     прежний = sys.stdin
     sys.stdin = io.StringIO("не json")

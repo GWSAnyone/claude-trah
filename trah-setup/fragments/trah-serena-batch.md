@@ -8,6 +8,7 @@
   "why": "платится не вызов, а круг: каждый лишний ход пересылает весь контекст заново",
   "note": "Переписано 29.08.2026 по замеру, а не по вкусу. Правило «шли независимое вместе» стояло здесь с самого начала — и сессии всё равно слали по два-три вызова при потолке 32. Причина не в силе формулировки: общее требование не даёт признака, по которому нарушение видно в момент нарушения, и проигрывает привычному ритму «вызвал — прочитал — вызвал». Добавлены две вещи. ПРИЗНАК: пачка из одного вызова — брак, если довод этого вызова не взят из прошлого ответа. ПОРЯДОК: шаг раскладывается на слои (найти — прочитать — связать — записать), и слой уезжает целиком, потому что внутри слоя зависимостей нет по построению.",
   "note_потолок": "Убрано «заполнять потолок — цель, а не исключение». Это неверная мишень: круг обмена бесплатным не станет, но ВЫВОД каждого вызова садится в контекст и пересылается дальше, так что тридцать две выгрузки тел «на всякий случай» стоят дороже сэкономленного хода. Мишень названа честно — число независимых вопросов этого слоя, — а решает, что брать спекулятивно, несимметричность цены: широкий дешёвый вызов стоит пустить по догадке, чтение с телом — только по вероятной нужде",
+  "note_bash": "Абзац про &&-цепочки добавлен 14.09.2026 по разбору одиночных пачек (singles.py, 12 крупнейших стенограмм, 18 108 одиночек). Самая крупная честно склеиваемая куча — Bash→Bash, где прошлая команда не упала и не делала rebuild/restart/sleep/push: 3 342. Слой чтения — 1 984, правки разных файлов — 641. Фрагмент про шелл молчал вовсе, а слои Serena к Bash не примеряются. В тот же день в слой «запись» дописано, что правки ОДНОГО файла тоже идут одной пачкой: отдельными ходами их было 950. Проверено тогда же — девять Edit одного файла (singles.py) в одной пачке легли все и по порядку. Туда же — проверка после правки в том же ходу: отдельным ходом шли 1 015 проверок и ещё 653 «правка → Bash». Порядок исполнения внутри пачки проверен одной пробой 14.09: первый Bash несколько секунд писал файл, второй в той же пачке его прочёл. Проба одна и на Bash, не на Edit — если сессия поймает проверку, увидевшую старый код, это место пересмотреть.",
   "covered_by": []
 }
 ---
@@ -40,8 +41,10 @@ a layer nothing depends on anything else:
 3. **Relate** — `find_referencing_symbols`, `find_declaration`,
    `find_implementations` for everything the second layer left open, again all
    at once.
-4. **Write** — every edit of the step in one turn, then
-   `get_diagnostics_for_file` on what was touched.
+4. **Write** — every edit of the step in one turn, several edits of one file
+   included, and the check after them — `get_diagnostics_for_file`, the build,
+   the test — last in the same turn. Calls of one turn run in the order written,
+   so the check sees the edits.
 
 Two layers merge into one turn whenever the second does not need the first one's
 answer: files whose paths you already know are read in the locating layer, not
@@ -52,6 +55,14 @@ The asymmetry of cost decides what goes in speculatively. A cheap wide call — 
 overview, a file list, a pattern search — is worth firing on a hunch. A call
 that carries a body back is worth firing on a likely need. "Might be useful one
 day" is not a reason to pull a body.
+
+A shell command obeys the same arithmetic. Two commands where the second neither
+reads the first one's output nor waits for its effect — a rebuild, a restart, a
+deploy — are one `Bash` call joined with `&&`, not two turns. `&&` stops at the
+first failure, so the chain is no riskier than the pair. Measured 14.09.2026 on
+the twelve largest sessions: 3 342 lone `Bash` calls followed a `Bash` that had
+neither failed nor changed anything — the largest honest reserve of width,
+ahead of the reading layer at 1 984.
 
 This is the single cheapest habit available to you, and the easiest to lose: the
 natural rhythm is call, read, call, read. Resist it. When you catch yourself

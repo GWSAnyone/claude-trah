@@ -193,8 +193,10 @@ a layer nothing depends on anything else:
 3. **Relate** — `find_referencing_symbols`, `find_declaration`,
    `find_implementations` for everything the second layer left open, again all
    at once.
-4. **Write** — every edit of the step in one turn, then
-   `get_diagnostics_for_file` on what was touched.
+4. **Write** — every edit of the step in one turn, several edits of one file
+   included, and the check after them — `get_diagnostics_for_file`, the build,
+   the test — last in the same turn. Calls of one turn run in the order written,
+   so the check sees the edits.
 
 Two layers merge into one turn whenever the second does not need the first one's
 answer: files whose paths you already know are read in the locating layer, not
@@ -205,6 +207,14 @@ The asymmetry of cost decides what goes in speculatively. A cheap wide call — 
 overview, a file list, a pattern search — is worth firing on a hunch. A call
 that carries a body back is worth firing on a likely need. "Might be useful one
 day" is not a reason to pull a body.
+
+A shell command obeys the same arithmetic. Two commands where the second neither
+reads the first one's output nor waits for its effect — a rebuild, a restart, a
+deploy — are one `Bash` call joined with `&&`, not two turns. `&&` stops at the
+first failure, so the chain is no riskier than the pair. Measured 14.09.2026 on
+the twelve largest sessions: 3 342 lone `Bash` calls followed a `Bash` that had
+neither failed nor changed anything — the largest honest reserve of width,
+ahead of the reading layer at 1 984.
 
 This is the single cheapest habit available to you, and the easiest to lose: the
 natural rhythm is call, read, call, read. Resist it. When you catch yourself

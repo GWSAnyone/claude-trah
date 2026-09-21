@@ -24,6 +24,7 @@ import importlib.util
 import json
 import os
 import sys
+from collections import Counter
 from pathlib import Path
 
 import sockmsg
@@ -35,6 +36,36 @@ import sockmsg
     "unless its argument came from the previous answer. Before the next call, name "
     "every independent question this step still has and send them in one turn."
 )
+
+# Подсказка по тому, из чего цепочка. Разбор одиночек 14.09.2026 (12 крупнейших
+# стенограмм): честно склеиваемые кучи — Bash за Bash без эффекта и ошибки 3 342,
+# чтение за чтением 1 984, правка того же файла 950, правка другого файла 641.
+# Общий текст про слои ни одну из них не называет.
+ЧТЕНИЕ = {"Read", "Grep", "Glob", "mcp__serena__find_symbol", "mcp__serena__search_for_pattern",
+          "mcp__serena__get_symbols_overview", "mcp__serena__find_referencing_symbols",
+          "mcp__serena__find_file", "mcp__serena__list_dir", "mcp__serena__find_declaration",
+          "mcp__serena__find_implementations"}
+ПРАВКА = {"Edit", "Write", "MultiEdit", "mcp__serena__replace_symbol_body",
+          "mcp__serena__replace_content", "mcp__serena__replace_in_files",
+          "mcp__serena__insert_after_symbol", "mcp__serena__insert_before_symbol"}
+ПОДСКАЗКИ = {
+    "Bash": " Most of them were Bash: commands that do not read each other's output and "
+            "do not wait for a rebuild or restart go as one call joined with &&.",
+    "чтение": " Most of them were reads: every file and symbol this step needs goes out "
+              "in one turn, the probably-needed ones included.",
+    "правка": " Most of them were edits: all edits of the step go in one turn, several "
+              "edits of the same file included, and the check after them goes last in that "
+              "same turn — calls of one turn run in order.",
+}
+
+
+def подсказка(имена: list[str]) -> str:
+    виды = Counter("Bash" if и == "Bash" else "чтение" if и in ЧТЕНИЕ
+                   else "правка" if и in ПРАВКА else "прочее" for и in имена)
+    if not виды:
+        return ""
+    вид, сколько = виды.most_common(1)[0]
+    return ПОДСКАЗКИ.get(вид, "") if сколько * 2 >= len(имена) else ""
 
 
 def порог() -> int:
@@ -83,10 +114,11 @@ def main() -> int:
             прежнее = {}
         предел = порог()
         подряд, напомнить = шаг(int(прежнее.get("подряд") or 0), строка["width"], предел)
+        имена = (list(прежнее.get("имена") or []) + строка["tools"])[-предел:] if подряд else []
         файл.parent.mkdir(parents=True, exist_ok=True)
-        файл.write_text(json.dumps({"подряд": подряд}), encoding="utf-8")
+        файл.write_text(json.dumps({"подряд": подряд, "имена": имена}), encoding="utf-8")
         if напомнить:
-            sockmsg.послать(ТЕКСТ.format(n=предел))
+            sockmsg.послать(ТЕКСТ.format(n=предел) + подсказка(имена))
     except Exception:
         return 0
     return 0
