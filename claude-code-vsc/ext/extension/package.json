@@ -2,7 +2,7 @@
   "name": "claude-code",
   "displayName": "Claude Code for VS Code",
   "description": "Claude Code for VS Code: Harness the power of Claude Code without leaving your IDE",
-  "version": "2.1.269",
+  "version": "2.1.278",
   "publisher": "Anthropic",
   "license": "© Anthropic PBC. All rights reserved. Use is subject to the Legal Agreements outlined here: https://code.claude.com/docs/en/legal-and-compliance.",
   "bugs": {
@@ -122,6 +122,11 @@
           "default": "panel",
           "description": "Where Claude opens by default. This setting updates automatically when you open Claude in a new location."
         },
+        "claudeCode.lockEditorGroups": {
+          "type": "boolean",
+          "default": true,
+          "description": "Lock the editor groups Claude starts for its tabs, so files you open while a Claude tab is focused go to another group instead of next to it. When off, Claude never locks an editor group. Groups that are already locked stay locked until you unlock them."
+        },
         "claudeCode.enableNewConversationShortcut": {
           "type": "boolean",
           "default": false,
@@ -136,6 +141,24 @@
           "type": "boolean",
           "default": false,
           "description": "Hide the onboarding checklist in Claude Code."
+        },
+        "claudeCode.attachOpenFile": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "Add the file that is open in the editor to your messages, and show it in the message box. When off, only text you select is added."
+        },
+        "claudeCode.continueAfterReload": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "After a window reload, a restored session continues the step that was interrupted."
+        },
+        "claudeCode.scrollToBottomOnSend": {
+          "type": "boolean",
+          "default": true,
+          "scope": "application",
+          "description": "Scroll the conversation to the bottom when you send a message. When off, the conversation stays where you left it."
         },
         "claudeCode.archiveInactiveSessions": {
           "type": "number",
@@ -262,6 +285,28 @@
         "command": "claude-vscode.rejectProposedDiff",
         "title": "Claude Code: Reject Proposed Changes",
         "enablement": "claude-vscode.viewingProposedDiff",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "claude-vscode.acceptProposedHunk",
+        "title": "Claude Code: Accept Change at Cursor",
+        "enablement": "claude-vscode.viewingProposedDiff",
+        "icon": "$(check)"
+      },
+      {
+        "command": "claude-vscode.rejectProposedHunk",
+        "title": "Claude Code: Reject Change at Cursor",
+        "enablement": "claude-vscode.viewingProposedDiff",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "claude-vscode.acceptProposedHunkFromBar",
+        "title": "Accept this change",
+        "icon": "$(check)"
+      },
+      {
+        "command": "claude-vscode.rejectProposedHunkFromBar",
+        "title": "Reject this change",
         "icon": "$(discard)"
       },
       {
@@ -478,6 +523,30 @@
       }
     ],
     "menus": {
+      "comments/commentThread/title": [
+        {
+          "command": "claude-vscode.acceptProposedHunkFromBar",
+          "when": "commentController == claude-code-hunks",
+          "group": "inline@1"
+        },
+        {
+          "command": "claude-vscode.rejectProposedHunkFromBar",
+          "when": "commentController == claude-code-hunks",
+          "group": "inline@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "claude-vscode.acceptProposedHunk",
+          "when": "resourceScheme == _claude_vscode_fs_right",
+          "group": "claudecode@1"
+        },
+        {
+          "command": "claude-vscode.rejectProposedHunk",
+          "when": "resourceScheme == _claude_vscode_fs_right",
+          "group": "claudecode@2"
+        }
+      ],
       "editor/title": [
         {
           "command": "claude-vscode.acceptProposedDiff",
@@ -528,6 +597,14 @@
         {
           "command": "claude-vscode.update",
           "when": "claude-vscode.updateSupported"
+        },
+        {
+          "command": "claude-vscode.acceptProposedHunkFromBar",
+          "when": "false"
+        },
+        {
+          "command": "claude-vscode.rejectProposedHunkFromBar",
+          "when": "false"
         },
         {
           "command": "claude-vscode.markSessionUnread",

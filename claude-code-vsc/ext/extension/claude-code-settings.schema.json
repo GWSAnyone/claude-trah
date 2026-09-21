@@ -289,13 +289,13 @@
       ]
     },
     "modelPricing": {
-      "description": "Price usage at your organization's contracted rates instead of list price. Affects every spend figure Claude Code reports — /cost, the status line, the SDK total_cost_usd, --max-budget-usd, and the OpenTelemetry cost metric and events — which remain USD estimates, not an invoice (the per-Mtok price labels in /model stay at list). \"overrides\" maps a model ID to its USD-per-million-token rates (input, output, cacheRead, cacheWrite — all four required, each 0 to 10000; cacheWrite prices both 5-minute and 1-hour cache writes). A matching row is charged exactly as written; fast-mode and US-data-residency surcharges are not added on top. A key Claude Code itself uses for a built-in model — its ID such as \"claude-sonnet-4-6\", or its first-party, Bedrock (any or no region prefix), Vertex or Foundry ID — covers every dated and provider form of that model; any other key — a gateway model alias, or a spelling Claude Code does not itself use — matches that model ID only (case-insensitive), and such an exact match wins over a built-in row. On Bedrock an application inference profile is matched by its backing model. An invalid row or multiplier is reported and skipped; the rest still apply. \"multiplier\" in (0, 1] scales every computed cost, overridden or not (0.85 = 85% of the price). Only honored from managed settings (server-managed, MDM / OS policy, or managed-settings.json), or — when none of those sets it — when supplied by a host application that manages the model provider; ignored in user, project, local and --settings sources.",
+      "description": "Price usage at your organization's contracted rates instead of list price. Affects every spend figure Claude Code reports — /cost, the status line, the SDK total_cost_usd, --max-budget-usd, and the OpenTelemetry cost metric and events — which remain USD estimates, not an invoice (the per-Mtok price labels in /model stay at list). \"overrides\" maps a model ID to its USD-per-million-token rates (input, output, cacheRead, cacheWrite — all four required, each 0 to 10000; cacheWrite prices both 5-minute and 1-hour cache writes). A matching row is charged exactly as written; fast-mode and US-data-residency surcharges are not added on top. A key Claude Code itself uses for a built-in model — its ID such as \"claude-sonnet-4-6\", or its first-party, Bedrock (any or no region prefix), Vertex or Foundry ID — covers every dated and provider form of that model; any other key — a gateway model alias, or a spelling Claude Code does not itself use — matches that model ID only (case-insensitive), and such an exact match wins over a built-in row. On Bedrock an application inference profile is matched by its backing model. An invalid row or multiplier is reported and skipped; the rest still apply. \"multiplier\" in (0, 10] scales every computed cost, overridden or not (0.85 = 85% of the price, 1.2 = 120%). Only honored from managed settings (server-managed, MDM / OS policy, or managed-settings.json), or — when none of those sets it — when supplied by a host application that manages the model provider; ignored in user, project, local and --settings sources.",
       "type": "object",
       "properties": {
         "multiplier": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "maximum": 1
+          "maximum": 10
         },
         "overrides": {
           "type": "object",
@@ -819,7 +819,7 @@
       "type": "boolean"
     },
     "workflowSizeGuideline": {
-      "description": "Advisory size guideline for the dynamic workflows Claude writes: \"small\" aims for fewer than 5 agents, \"medium\" (the default) fewer than 15, \"large\" fewer than 50, and \"unrestricted\" sends no guideline. A value here — including from managed settings — takes precedence over the \"Dynamic workflow size\" choice in /config, and that /config row is hidden while a settings file provides the key. This is a guideline, not an enforced limit.",
+      "description": "Advisory size guideline for the dynamic workflows Claude writes: \"small\" aims for fewer than 5 agents, \"medium\" fewer than 10, \"large\" fewer than 50, and \"unrestricted\" sends no guideline. Unset defaults to \"medium\", or \"small\" on Pro plans. A value here — including from managed settings — takes precedence over the \"Dynamic workflow size\" choice in /config, and that /config row is hidden while a settings file provides the key. This is a guideline, not an enforced limit.",
       "type": "string",
       "enum": [
         "unrestricted",
@@ -855,7 +855,7 @@
       "maximum": 9007199254740991
     },
     "taskOutputMaxChars": {
-      "description": "How many characters of a background task's output the TaskOutput tool hands Claude inline (default 32000; values clamp to 4000-128000). Longer output is cut to its most recent characters with the path of the full output file, except that a shell command still running returns its first characters up to this size. When set, this also replaces TASK_MAX_OUTPUT_LENGTH, which on its own only sizes that window.",
+      "description": "Deprecated: no longer has any effect (the TaskOutput tool was removed). Read a background task's output file with the Read tool instead.",
       "type": "integer",
       "exclusiveMinimum": 0,
       "maximum": 9007199254740991
@@ -1125,7 +1125,7 @@
                     }
                   },
                   "skipLfs": {
-                    "description": "Skip Git LFS smudge during clone and update (sets GIT_LFS_SKIP_SMUDGE=1) so LFS pointer files stay as pointers instead of downloading their content. Use for marketplaces hosted in repos with large LFS objects.",
+                    "description": "Has no effect; accepted so existing settings keep working. Claude Code's own git never downloads Git LFS content: LFS-tracked files in the marketplace repository are checked out as pointer files whether or not this is set, and adding or updating the marketplace says how many were. To fetch their content, run `git lfs pull` in the marketplace's checkout under ~/.claude/plugins/marketplaces/.",
                     "type": "boolean"
                   }
                 },
@@ -1161,7 +1161,7 @@
                     }
                   },
                   "skipLfs": {
-                    "description": "Skip Git LFS smudge during clone and update (sets GIT_LFS_SKIP_SMUDGE=1) so LFS pointer files stay as pointers instead of downloading their content. Use for marketplaces hosted in repos with large LFS objects.",
+                    "description": "Has no effect; accepted so existing settings keep working. Claude Code's own git never downloads Git LFS content: LFS-tracked files in the marketplace repository are checked out as pointer files whether or not this is set, and adding or updating the marketplace says how many were. To fetch their content, run `git lfs pull` in the marketplace's checkout under ~/.claude/plugins/marketplaces/.",
                     "type": "boolean"
                   }
                 },
@@ -1178,8 +1178,25 @@
                     "const": "npm"
                   },
                   "package": {
-                    "description": "NPM package containing marketplace.json",
+                    "description": "npm package containing marketplace.json (e.g. \"@acme/claude-marketplace\"). In strictKnownMarketplaces / blockedMarketplaces an entry also governs plugins installed straight from the npm marketplace (`<package>@npm`): an exact package name matches that package, and \"@acme/*\" matches every package under the scope.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "string",
+                        "pattern": "^@[a-z0-9][a-z0-9-._]*\\/\\*$"
+                      }
+                    ]
+                  },
+                  "version": {
+                    "description": "Version or range to fetch (e.g. \"1.4.0\", \"^1.4\"); defaults to the latest dist-tag",
                     "type": "string"
+                  },
+                  "registry": {
+                    "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\").",
+                    "type": "string",
+                    "format": "uri"
                   }
                 },
                 "required": [
@@ -1648,7 +1665,7 @@
                     }
                   },
                   "skipLfs": {
-                    "description": "Skip Git LFS smudge during clone and update (sets GIT_LFS_SKIP_SMUDGE=1) so LFS pointer files stay as pointers instead of downloading their content. Use for marketplaces hosted in repos with large LFS objects.",
+                    "description": "Has no effect; accepted so existing settings keep working. Claude Code's own git never downloads Git LFS content: LFS-tracked files in the marketplace repository are checked out as pointer files whether or not this is set, and adding or updating the marketplace says how many were. To fetch their content, run `git lfs pull` in the marketplace's checkout under ~/.claude/plugins/marketplaces/.",
                     "type": "boolean"
                   }
                 },
@@ -1684,7 +1701,7 @@
                     }
                   },
                   "skipLfs": {
-                    "description": "Skip Git LFS smudge during clone and update (sets GIT_LFS_SKIP_SMUDGE=1) so LFS pointer files stay as pointers instead of downloading their content. Use for marketplaces hosted in repos with large LFS objects.",
+                    "description": "Has no effect; accepted so existing settings keep working. Claude Code's own git never downloads Git LFS content: LFS-tracked files in the marketplace repository are checked out as pointer files whether or not this is set, and adding or updating the marketplace says how many were. To fetch their content, run `git lfs pull` in the marketplace's checkout under ~/.claude/plugins/marketplaces/.",
                     "type": "boolean"
                   }
                 },
@@ -1701,8 +1718,25 @@
                     "const": "npm"
                   },
                   "package": {
-                    "description": "NPM package containing marketplace.json",
+                    "description": "npm package containing marketplace.json (e.g. \"@acme/claude-marketplace\"). In strictKnownMarketplaces / blockedMarketplaces an entry also governs plugins installed straight from the npm marketplace (`<package>@npm`): an exact package name matches that package, and \"@acme/*\" matches every package under the scope.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "string",
+                        "pattern": "^@[a-z0-9][a-z0-9-._]*\\/\\*$"
+                      }
+                    ]
+                  },
+                  "version": {
+                    "description": "Version or range to fetch (e.g. \"1.4.0\", \"^1.4\"); defaults to the latest dist-tag",
                     "type": "string"
+                  },
+                  "registry": {
+                    "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\").",
+                    "type": "string",
+                    "format": "uri"
                   }
                 },
                 "required": [
@@ -2164,7 +2198,7 @@
                 }
               },
               "skipLfs": {
-                "description": "Skip Git LFS smudge during clone and update (sets GIT_LFS_SKIP_SMUDGE=1) so LFS pointer files stay as pointers instead of downloading their content. Use for marketplaces hosted in repos with large LFS objects.",
+                "description": "Has no effect; accepted so existing settings keep working. Claude Code's own git never downloads Git LFS content: LFS-tracked files in the marketplace repository are checked out as pointer files whether or not this is set, and adding or updating the marketplace says how many were. To fetch their content, run `git lfs pull` in the marketplace's checkout under ~/.claude/plugins/marketplaces/.",
                 "type": "boolean"
               }
             },
@@ -2200,7 +2234,7 @@
                 }
               },
               "skipLfs": {
-                "description": "Skip Git LFS smudge during clone and update (sets GIT_LFS_SKIP_SMUDGE=1) so LFS pointer files stay as pointers instead of downloading their content. Use for marketplaces hosted in repos with large LFS objects.",
+                "description": "Has no effect; accepted so existing settings keep working. Claude Code's own git never downloads Git LFS content: LFS-tracked files in the marketplace repository are checked out as pointer files whether or not this is set, and adding or updating the marketplace says how many were. To fetch their content, run `git lfs pull` in the marketplace's checkout under ~/.claude/plugins/marketplaces/.",
                 "type": "boolean"
               }
             },
@@ -2217,8 +2251,25 @@
                 "const": "npm"
               },
               "package": {
-                "description": "NPM package containing marketplace.json",
+                "description": "npm package containing marketplace.json (e.g. \"@acme/claude-marketplace\"). In strictKnownMarketplaces / blockedMarketplaces an entry also governs plugins installed straight from the npm marketplace (`<package>@npm`): an exact package name matches that package, and \"@acme/*\" matches every package under the scope.",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^@[a-z0-9][a-z0-9-._]*\\/\\*$"
+                  }
+                ]
+              },
+              "version": {
+                "description": "Version or range to fetch (e.g. \"1.4.0\", \"^1.4\"); defaults to the latest dist-tag",
                 "type": "string"
+              },
+              "registry": {
+                "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\").",
+                "type": "string",
+                "format": "uri"
               }
             },
             "required": [
@@ -2667,7 +2718,7 @@
                 }
               },
               "skipLfs": {
-                "description": "Skip Git LFS smudge during clone and update (sets GIT_LFS_SKIP_SMUDGE=1) so LFS pointer files stay as pointers instead of downloading their content. Use for marketplaces hosted in repos with large LFS objects.",
+                "description": "Has no effect; accepted so existing settings keep working. Claude Code's own git never downloads Git LFS content: LFS-tracked files in the marketplace repository are checked out as pointer files whether or not this is set, and adding or updating the marketplace says how many were. To fetch their content, run `git lfs pull` in the marketplace's checkout under ~/.claude/plugins/marketplaces/.",
                 "type": "boolean"
               }
             },
@@ -2703,7 +2754,7 @@
                 }
               },
               "skipLfs": {
-                "description": "Skip Git LFS smudge during clone and update (sets GIT_LFS_SKIP_SMUDGE=1) so LFS pointer files stay as pointers instead of downloading their content. Use for marketplaces hosted in repos with large LFS objects.",
+                "description": "Has no effect; accepted so existing settings keep working. Claude Code's own git never downloads Git LFS content: LFS-tracked files in the marketplace repository are checked out as pointer files whether or not this is set, and adding or updating the marketplace says how many were. To fetch their content, run `git lfs pull` in the marketplace's checkout under ~/.claude/plugins/marketplaces/.",
                 "type": "boolean"
               }
             },
@@ -2720,8 +2771,25 @@
                 "const": "npm"
               },
               "package": {
-                "description": "NPM package containing marketplace.json",
+                "description": "npm package containing marketplace.json (e.g. \"@acme/claude-marketplace\"). In strictKnownMarketplaces / blockedMarketplaces an entry also governs plugins installed straight from the npm marketplace (`<package>@npm`): an exact package name matches that package, and \"@acme/*\" matches every package under the scope.",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^@[a-z0-9][a-z0-9-._]*\\/\\*$"
+                  }
+                ]
+              },
+              "version": {
+                "description": "Version or range to fetch (e.g. \"1.4.0\", \"^1.4\"); defaults to the latest dist-tag",
                 "type": "string"
+              },
+              "registry": {
+                "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\").",
+                "type": "string",
+                "format": "uri"
               }
             },
             "required": [
@@ -3170,7 +3238,7 @@
                 }
               },
               "skipLfs": {
-                "description": "Skip Git LFS smudge during clone and update (sets GIT_LFS_SKIP_SMUDGE=1) so LFS pointer files stay as pointers instead of downloading their content. Use for marketplaces hosted in repos with large LFS objects.",
+                "description": "Has no effect; accepted so existing settings keep working. Claude Code's own git never downloads Git LFS content: LFS-tracked files in the marketplace repository are checked out as pointer files whether or not this is set, and adding or updating the marketplace says how many were. To fetch their content, run `git lfs pull` in the marketplace's checkout under ~/.claude/plugins/marketplaces/.",
                 "type": "boolean"
               }
             },
@@ -3206,7 +3274,7 @@
                 }
               },
               "skipLfs": {
-                "description": "Skip Git LFS smudge during clone and update (sets GIT_LFS_SKIP_SMUDGE=1) so LFS pointer files stay as pointers instead of downloading their content. Use for marketplaces hosted in repos with large LFS objects.",
+                "description": "Has no effect; accepted so existing settings keep working. Claude Code's own git never downloads Git LFS content: LFS-tracked files in the marketplace repository are checked out as pointer files whether or not this is set, and adding or updating the marketplace says how many were. To fetch their content, run `git lfs pull` in the marketplace's checkout under ~/.claude/plugins/marketplaces/.",
                 "type": "boolean"
               }
             },
@@ -3223,8 +3291,25 @@
                 "const": "npm"
               },
               "package": {
-                "description": "NPM package containing marketplace.json",
+                "description": "npm package containing marketplace.json (e.g. \"@acme/claude-marketplace\"). In strictKnownMarketplaces / blockedMarketplaces an entry also governs plugins installed straight from the npm marketplace (`<package>@npm`): an exact package name matches that package, and \"@acme/*\" matches every package under the scope.",
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^@[a-z0-9][a-z0-9-._]*\\/\\*$"
+                  }
+                ]
+              },
+              "version": {
+                "description": "Version or range to fetch (e.g. \"1.4.0\", \"^1.4\"); defaults to the latest dist-tag",
                 "type": "string"
+              },
+              "registry": {
+                "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\").",
+                "type": "string",
+                "format": "uri"
               }
             },
             "required": [
@@ -4771,5 +4856,5 @@
   "additionalProperties": {},
   "title": "Claude Code Settings",
   "description": "Configuration settings for Claude Code. Learn more: https://code.claude.com/docs/en/settings",
-  "$comment": "Generated on 2026-09-11T17:36:00.530Z"
+  "$comment": "Generated on 2026-09-19T01:14:52.904Z"
 }

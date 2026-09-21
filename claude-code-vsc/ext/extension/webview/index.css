@@ -55,6 +55,14 @@ html {
   --app-input-secondary-background: var(--vscode-menu-background);
   --app-tool-background: var(--vscode-editor-background);
   --app-code-background: var(--vscode-textCodeBlock-background, #7f7f7f26);
+  --app-inline-code-foreground: var(
+    --vscode-textPreformat-foreground,
+    var(--app-primary-foreground)
+  );
+  --app-inline-code-background: var(
+    --vscode-textPreformat-background,
+    #7f7f7f26
+  );
   --app-list-padding: 0px;
   --app-list-item-padding: 4px 8px;
   --app-list-border-color: transparent;
@@ -90,7 +98,8 @@ html {
   --app-button-foreground: var(--vscode-button-foreground);
   --app-button-background: var(--vscode-button-background);
   --app-button-hover-background: var(--vscode-button-hoverBackground);
-  --app-accent-color: var(--app-claude-orange);
+  --app-accent-color: var(--app-button-background);
+  --app-plan-mode-color: var(--app-button-background);
   --app-effort-fill-color: var(--vscode-inputOption-activeBorder);
   --app-ultracode-color: var(--app-chart-5);
   --app-transparent-inner-border: #ffffff1a;
@@ -150,9 +159,13 @@ html {
 }
 .vscode-high-contrast {
   --app-diff-editor-background: #000;
+  --app-accent-color: var(--vscode-focusBorder);
+  --app-plan-mode-color: var(--vscode-focusBorder);
 }
 .vscode-high-contrast-light {
   --app-diff-editor-background: #fff;
+  --app-accent-color: var(--vscode-focusBorder);
+  --app-plan-mode-color: var(--vscode-focusBorder);
 }
 .toolUse_uq5aLg {
   width: 100%;
@@ -483,6 +496,7 @@ html {
 .codeBlockWrapper_-a7MRw pre {
   overflow-x: auto;
   white-space: pre;
+  color: var(--app-primary-foreground);
   background: var(--app-code-background);
   box-sizing: border-box;
   border-radius: 4px;
@@ -500,18 +514,25 @@ html {
 }
 .root_-a7MRw code {
   font-family: var(--app-monospace-font-family);
-  background: var(--app-code-background);
+  color: var(--app-inline-code-foreground);
+  background: var(--app-inline-code-background);
   word-break: break-word;
   border-radius: 3px;
   padding: 2px 4px;
   font-size: 0.9em;
 }
+.root_-a7MRw a code {
+  color: inherit;
+  background: var(--app-code-background);
+}
 .root_-a7MRw pre code {
+  color: inherit;
   background: 0 0;
   padding: 0;
 }
 .root_-a7MRw .insightHeader_-a7MRw,
 .root_-a7MRw .insightFooter_-a7MRw {
+  color: var(--app-primary-foreground);
   background: 0 0;
 }
 .root_-a7MRw ol,
@@ -569,6 +590,13 @@ html {
   width: fit-content;
   margin-top: 4px;
   margin-bottom: 12px;
+}
+.narrationSummary_o3SSrg > span > p:last-child {
+  display: inline;
+}
+.hint_o3SSrg {
+  color: var(--app-secondary-foreground);
+  user-select: none;
 }
 .thinkingSummary_aHyQPQ {
   cursor: pointer;
@@ -1239,6 +1267,46 @@ html {
 .screenshotContainer_DU_5JQ > div > img {
   max-width: 160px;
   height: 80px;
+}
+.comments_U90l1A {
+  margin-bottom: 8px;
+}
+.commentsTitle_U90l1A {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.commentList_U90l1A {
+  overflow-y: auto;
+  max-height: clamp(4em, 70vh - 16em, 40vh);
+  padding: 2px 2px 0 0;
+}
+.comment_U90l1A {
+  display: flex;
+  border-left: 2px solid var(--app-secondary-foreground);
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+  padding-left: 8px;
+}
+.commentBody_U90l1A {
+  overflow-wrap: anywhere;
+  flex: 1;
+  min-width: 0;
+}
+.commentQuote_U90l1A {
+  opacity: 0.7;
+  font-size: 0.9em;
+  font-style: italic;
+}
+.removeComment_U90l1A {
+  color: var(--app-secondary-foreground);
+  cursor: pointer;
+  background: 0 0;
+  border: none;
+  flex-shrink: 0;
+  padding: 0 4px;
+  font-size: 1em;
+  line-height: 1;
 }
 .monaco-editor {
   --monaco-monospace-font:
@@ -7118,7 +7186,6 @@ html {
   overflow: hidden;
   border-radius: 4px;
   width: 100%;
-  max-height: 200px;
 }
 .diffEditorContainer_s6OFow .codicon-light-bulb {
   opacity: 0 !important;
@@ -7300,13 +7367,6 @@ html {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-}
-.narrationSummary_o3SSrg > span > p:last-child {
-  display: inline;
-}
-.hint_o3SSrg {
-  color: var(--app-secondary-foreground);
-  user-select: none;
 }
 .root_aqhumA {
   display: flex;
@@ -8078,6 +8138,17 @@ button {
   width: 18px;
   height: 18px;
 }
+.visuallyHidden_ZQjaqw {
+  position: absolute;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+}
 .optionButton_D4SU-A {
   padding: 6px var(--app-spacing-medium);
   border-radius: var(--corner-radius-small);
@@ -8129,6 +8200,7 @@ button {
   padding: var(--app-spacing-xlarge);
   border-radius: var(--corner-radius-small);
   user-select: text;
+  outline: 0;
   width: 380px;
   max-width: 90%;
 }
@@ -8190,17 +8262,6 @@ button {
 }
 .deletions_oblbPg {
   color: var(--app-diff-deletion-foreground);
-}
-.visuallyHidden_ZQjaqw {
-  position: absolute;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
 }
 .sessionLayout_07S1Yg {
   display: flex;
@@ -8292,8 +8353,34 @@ button {
   align-items: flex-start;
   gap: 0;
 }
-.message_07S1Yg:has([data-message-rating]) {
+.message_07S1Yg:has([data-message-actions]) {
   padding-bottom: 0;
+}
+.assistantActions_07S1Yg {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 16px;
+}
+.assistantActions_07S1Yg .copyResponseButton_07S1Yg {
+  color: var(--app-secondary-foreground);
+  background: 0 0;
+  border: none;
+  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  transition: none;
+}
+.assistantActions_07S1Yg .copyResponseButton_07S1Yg:focus {
+  opacity: 1;
+}
+[data-testid="assistant-message"]:hover .copyResponseButton_07S1Yg {
+  opacity: 1;
+}
+.assistantActions_07S1Yg .copyResponseButton_07S1Yg:hover {
+  color: var(--app-primary-foreground);
+  background-color: var(--app-secondary-background);
 }
 .message_07S1Yg:first-child {
   --message-padding-top: 0px;
@@ -8747,7 +8834,6 @@ button {
   font-size: 1em;
 }
 .tree_iHnHpw {
-  overflow: auto;
   padding: 4px 8px 8px 0;
 }
 .node_iHnHpw {
@@ -8760,6 +8846,9 @@ button {
   flex-direction: column;
   gap: 8px;
   margin-left: 32px;
+}
+.rowMain_iHnHpw + .children_iHnHpw:before {
+  display: none;
 }
 .children_iHnHpw:before {
   content: "";
@@ -8800,7 +8889,8 @@ button {
 .child_iHnHpw:only-child:after {
   display: none;
 }
-.node_iHnHpw > .row_iHnHpw {
+.node_iHnHpw > .row_iHnHpw,
+.tasks_iHnHpw > .row_iHnHpw {
   box-sizing: border-box;
   color: var(--app-primary-foreground);
   text-align: left;
@@ -8815,8 +8905,40 @@ button {
   font-family: inherit;
   font-size: 1em;
 }
+.tasks_iHnHpw {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 0 8px 8px 0;
+}
+.tasksHeader_iHnHpw {
+  color: var(--app-secondary-foreground);
+  margin-bottom: 4px;
+  font-size: 1em;
+}
 .node_iHnHpw > .rowMain_iHnHpw {
+  position: sticky;
+  z-index: 1;
   width: 320px;
+  top: 0;
+  bottom: 0;
+}
+.node_iHnHpw > .rowMain_iHnHpw:hover {
+  background-color: var(--app-input-secondary-background);
+  background-image: linear-gradient(
+    var(--app-list-hover-background),
+    var(--app-list-hover-background)
+  );
+}
+.rowMain_iHnHpw:not(:only-child):after {
+  content: "";
+  position: absolute;
+  background: var(--app-input-border);
+  width: 16px;
+  height: 1px;
+  top: 50%;
+  left: calc(100% + 1px);
 }
 .rowTitle_iHnHpw {
   display: flex;
@@ -8986,7 +9108,7 @@ button {
   color: var(--app-primary-foreground);
 }
 .container_hc5dvw[data-permission-mode="plan"] .icon_hc5dvw {
-  color: var(--vscode-focusBorder, var(--app-button-background));
+  color: var(--app-plan-mode-color);
 }
 .container_hc5dvw[data-permission-mode="bypassPermissions"] .icon_hc5dvw,
 .container_hc5dvw[data-permission-mode="auto"] .icon_hc5dvw {
@@ -9163,6 +9285,14 @@ button {
   padding: 8px 12px;
   font-size: 13px;
 }
+.retryLink_IHCQeQ {
+  color: inherit;
+  text-decoration: underline;
+}
+.retryLink_IHCQeQ:hover,
+.retryLink_IHCQeQ:active {
+  color: inherit;
+}
 .loadingText_IHCQeQ {
   opacity: 0.5;
   text-align: center;
@@ -9182,7 +9312,8 @@ button {
 }
 .hint_IHCQeQ code {
   font-family: var(--app-monospace-font-family);
-  background-color: var(--app-input-secondary-background);
+  color: var(--app-inline-code-foreground);
+  background-color: var(--app-inline-code-background);
   border-radius: 3px;
   padding: 2px 6px;
 }
@@ -9261,6 +9392,9 @@ button {
 }
 .backButton_IHCQeQ:hover {
   text-decoration: underline;
+}
+.backButton_IHCQeQ:focus:not(:focus-visible) {
+  outline: none;
 }
 .detailHeader_IHCQeQ {
   display: flex;
@@ -10491,7 +10625,8 @@ button {
 .warningBanner_EAFtCg code,
 .hint_EAFtCg code {
   font-family: var(--app-monospace-font-family);
-  background-color: var(--app-input-secondary-background);
+  color: var(--app-inline-code-foreground);
+  background-color: var(--app-inline-code-background);
   border-radius: 3px;
   padding: 2px 6px;
 }
@@ -10667,6 +10802,27 @@ button {
   margin-bottom: 12px;
   font-size: 1em;
 }
+.popupMessage_EAFtCg {
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+.popupFile_EAFtCg {
+  color: var(--app-secondary-foreground);
+  font-family: var(--app-monospace-font-family);
+  font-size: var(--app-monospace-font-size-small);
+  word-break: break-all;
+  margin: 0;
+}
+.popupStatus_EAFtCg {
+  color: var(--app-secondary-foreground);
+  margin: 8px 0 0;
+}
+.popupStatus_EAFtCg:empty {
+  margin: 0;
+}
+.popupReason_EAFtCg {
+  margin-top: 4px;
+}
 .searchContainer_-FIyPw {
   margin-bottom: 12px;
 }
@@ -10683,6 +10839,198 @@ button {
 .searchInput_-FIyPw:focus {
   outline: none;
   border-color: var(--app-input-active-border);
+}
+.error_XfsNxw,
+.notice_XfsNxw,
+.loading_XfsNxw {
+  font-size: var(--vscode-chat-font-size, 13px);
+  color: var(--app-secondary-foreground);
+  margin: 0 0 12px;
+}
+.error_XfsNxw {
+  color: var(--app-error-foreground);
+}
+.body_XfsNxw {
+  outline: none;
+}
+.toggles_XfsNxw {
+  display: flex;
+  border: 1px solid var(--app-widget-border);
+  border-radius: 4px;
+  flex-direction: column;
+  margin: 0 0 12px;
+}
+.toggleRow_XfsNxw {
+  display: flex;
+  cursor: pointer;
+  border-bottom: 1px solid var(--app-widget-border);
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+}
+.toggleRow_XfsNxw:last-child {
+  border-bottom: none;
+}
+.toggleRow_XfsNxw.inert_XfsNxw {
+  cursor: default;
+}
+.toggleLabel_XfsNxw {
+  font-size: var(--vscode-chat-font-size, 13px);
+  color: var(--app-primary-foreground);
+  flex: 1;
+}
+.inert_XfsNxw .toggleLabel_XfsNxw {
+  color: var(--app-disabled-foreground);
+}
+.list_XfsNxw {
+  list-style: none;
+  overflow-y: auto;
+  border: 1px solid var(--app-widget-border);
+  border-radius: 4px;
+  max-height: 280px;
+  margin: 0;
+  padding: 0;
+}
+.item_XfsNxw {
+  cursor: pointer;
+  display: flex;
+  border-bottom: 1px solid var(--app-widget-border);
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 12px;
+}
+.item_XfsNxw:last-child {
+  border-bottom: none;
+}
+.list_XfsNxw + .list_XfsNxw {
+  margin-top: 12px;
+}
+.memoryRow_XfsNxw {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+.memoryHead_XfsNxw {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+.item_XfsNxw:hover,
+.toggleRow_XfsNxw:hover,
+.focused_XfsNxw {
+  background-color: var(--app-list-hover-background);
+}
+.focused_XfsNxw {
+  outline: 1px solid var(--app-input-active-border);
+  outline-offset: -1px;
+}
+.itemLabel_XfsNxw {
+  font-size: var(--vscode-chat-font-size, 13px);
+  color: var(--app-primary-foreground);
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.toggleDetail_XfsNxw,
+.itemPath_XfsNxw {
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 2px);
+  color: var(--app-secondary-foreground);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.keys_XfsNxw {
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 2px);
+  color: var(--app-secondary-foreground);
+  margin: 12px 0 0;
+}
+.keys_XfsNxw kbd {
+  font-family: var(--app-monospace-font-family);
+  border: 1px solid var(--app-widget-border);
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 3px);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+.detail_XfsNxw {
+  display: flex;
+  outline: none;
+  flex-direction: column;
+  gap: 8px;
+}
+.memoryText_XfsNxw {
+  overflow: auto;
+  border: 1px solid var(--app-input-border);
+  background-color: var(--app-input-background);
+  color: var(--app-input-foreground);
+  font-family: var(--app-monospace-font-family);
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 1px);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
+  unicode-bidi: plaintext;
+  border-radius: 6px;
+  width: 100%;
+  min-height: 120px;
+  max-height: 320px;
+  margin: 0;
+  padding: 8px 12px;
+  line-height: 1.4;
+}
+textarea.memoryText_XfsNxw {
+  resize: vertical;
+}
+textarea.memoryText_XfsNxw:focus {
+  outline: none;
+  border-color: var(--app-input-active-border);
+}
+.linkButton_XfsNxw {
+  color: inherit;
+  cursor: pointer;
+  font-size: inherit;
+  text-decoration: underline;
+  background: 0 0;
+  border: none;
+  padding: 0;
+}
+.toggle_0c4GDA {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.locked_0c4GDA {
+  opacity: 0.5;
+}
+.label_0c4GDA {
+  color: var(--app-secondary-foreground);
+  font-size: 0.85em;
+}
+.track_0c4GDA {
+  background: var(--app-input-border);
+  position: relative;
+  border-radius: 9px;
+  width: 32px;
+  height: 18px;
+  transition: background 0.15s;
+}
+.trackOn_0c4GDA {
+  background: var(--app-accent-color);
+}
+.thumb_0c4GDA {
+  background: var(--app-primary-foreground);
+  position: absolute;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  transition: left 0.15s;
+  top: 2px;
+  left: 2px;
+}
+.thumbOn_0c4GDA {
+  left: 16px;
 }
 .container_v2CdxQ {
   position: absolute;
@@ -10822,6 +11170,48 @@ button {
   color: var(--app-secondary-foreground);
   word-break: break-all;
   padding: 2px 0;
+}
+.choiceGroup_n2luCQ {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+.choiceOption_n2luCQ {
+  display: flex;
+  border: 1px solid var(--app-input-border);
+  background: var(--app-input-background);
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px;
+  font-family: inherit;
+}
+.choiceOption_n2luCQ:hover:not(:disabled),
+.choiceOption_n2luCQ.choiceOptionSelected_n2luCQ {
+  border-color: var(--app-input-active-border);
+  background: var(--app-list-hover-background);
+}
+.choiceOption_n2luCQ:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.choiceOptionText_n2luCQ {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.choiceOptionLabel_n2luCQ {
+  font-weight: 500;
+  font-size: var(--vscode-chat-font-size, 13px);
+  color: var(--app-primary-foreground);
+}
+.choiceOptionDescription_n2luCQ {
+  color: var(--app-secondary-foreground);
+  font-size: 0.92em;
 }
 .forkNote_n2luCQ {
   color: var(--app-secondary-foreground);
@@ -11164,6 +11554,59 @@ button {
   padding: 8px 8px 0;
   font-size: 0.9em;
 }
+.body_S-aIPA {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.intro_S-aIPA,
+.status_S-aIPA {
+  font-size: var(--vscode-chat-font-size, 13px);
+  color: var(--app-primary-foreground);
+  margin: 0;
+}
+.good_S-aIPA {
+  color: var(--app-success-foreground);
+}
+.dim_S-aIPA {
+  color: var(--app-secondary-foreground);
+}
+.unavailable_S-aIPA {
+  font-size: var(--vscode-chat-font-size, 13px);
+  color: var(--app-error-foreground);
+  margin: 0;
+}
+.actions_S-aIPA {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.help_S-aIPA {
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 1px);
+  color: var(--app-secondary-foreground);
+  margin: 0;
+}
+.link_S-aIPA {
+  color: var(--app-secondary-foreground);
+  text-decoration: underline;
+}
+.manual_S-aIPA {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.codeRow_S-aIPA {
+  display: flex;
+  gap: 8px;
+}
+.codeRow_S-aIPA input {
+  flex: 1;
+  min-width: 0;
+}
+.codeRow_S-aIPA button {
+  flex: none;
+  width: auto;
+}
 .sectionHeading_0Reg3g {
   display: flex;
   text-transform: uppercase;
@@ -11332,7 +11775,8 @@ button {
 }
 .overlayNote_0Reg3g code {
   font-family: var(--app-monospace-font-family);
-  background-color: var(--app-input-secondary-background);
+  color: var(--app-inline-code-foreground);
+  background-color: var(--app-inline-code-background);
   border-radius: 3px;
   padding: 1px 4px;
 }
@@ -11425,6 +11869,43 @@ button {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.sessionUsage_JuUW3A {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 4px;
+}
+.subsectionTitle_JuUW3A {
+  color: var(--app-primary-foreground);
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.sessionNote_JuUW3A {
+  color: var(--app-primary-foreground);
+  opacity: 0.6;
+  margin: 0;
+  font-size: 12px;
+  font-style: italic;
+}
+.modelUsage_JuUW3A {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+}
+.modelUsageRow_JuUW3A {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: 12px;
+}
+.modelUsageDetail_JuUW3A {
+  color: var(--app-primary-foreground);
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
 }
 .manageLink_JuUW3A {
   color: var(--app-secondary-foreground);
@@ -11909,6 +12390,7 @@ button {
 .versionText_G_S7FQ {
   user-select: text;
   cursor: text;
+  margin-left: auto;
 }
 .filterInput_90gk3A {
   background: var(--app-input-background);
@@ -12299,7 +12781,7 @@ button {
 }
 .sendButton_gGYT1w[data-permission-mode="plan"] {
   color: var(--app-button-foreground);
-  background-color: var(--vscode-focusBorder, var(--app-button-background));
+  background-color: var(--app-plan-mode-color);
 }
 .sendButton_gGYT1w[data-permission-mode="bypassPermissions"],
 .sendButton_gGYT1w[data-permission-mode="auto"] {
@@ -12447,6 +12929,9 @@ span.indicator_a_iRsA:hover {
   cursor: default;
   background: 0 0;
 }
+div.host_a_iRsA {
+  min-width: 0;
+}
 span.indicator_a_iRsA svg path {
   transform-origin: 50% 50%;
   transform-box: view-box;
@@ -12462,6 +12947,51 @@ span.indicator_a_iRsA[data-cache-window]:not(.cold_a_iRsA) {
 span.indicator_a_iRsA.cold_a_iRsA {
   color: var(--app-error-foreground);
   padding: 0;
+}
+.host_v41KHw {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.popup_v41KHw {
+  position: absolute;
+  pointer-events: none;
+  background: var(--app-menu-background);
+  border: 1px solid var(--app-input-border);
+  border-radius: var(--corner-radius-large);
+  overflow: hidden;
+  animation: fadeIn 0.15s ease-out;
+  z-index: 1000;
+  min-width: min(200px, 100vw - 16px);
+  margin-bottom: 8px;
+  padding: 4px;
+  bottom: 100%;
+  right: 0;
+}
+@keyframes fadeIn_pvSKwA {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.content_v41KHw {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 8px;
+}
+.text_v41KHw {
+  color: var(--app-primary-foreground);
+  font-size: 0.9em;
+}
+.hint_v41KHw {
+  color: var(--app-secondary-foreground);
+  margin-top: 4px;
+  font-size: 0.85em;
 }
 .container_8RAulQ {
   position: relative;
@@ -12814,11 +13344,6 @@ span.indicator_a_iRsA.cold_a_iRsA {
 .pillOn_jamplw:focus-visible {
   outline-color: var(--app-claude-ivory);
 }
-.usageContainer_P2QnnQ {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
 .usage_P2QnnQ {
   display: inline-flex;
   color: var(--app-secondary-foreground);
@@ -12836,45 +13361,6 @@ span.indicator_a_iRsA.cold_a_iRsA {
 }
 .pie_P2QnnQ {
   flex-shrink: 0;
-}
-.popup_P2QnnQ {
-  position: absolute;
-  background: var(--app-menu-background);
-  border: 1px solid var(--app-input-border);
-  border-radius: var(--corner-radius-large);
-  overflow: hidden;
-  animation: fadeIn 0.15s ease-out;
-  z-index: 1000;
-  min-width: 200px;
-  margin-bottom: 8px;
-  padding: 4px;
-  bottom: 100%;
-  right: 0;
-}
-@keyframes fadeIn_br1R8w {
-  0% {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-.popupContent_P2QnnQ {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 8px;
-}
-.remainingText_P2QnnQ {
-  color: var(--app-primary-foreground);
-  font-size: 0.9em;
-}
-.compactHint_P2QnnQ {
-  color: var(--app-secondary-foreground);
-  margin-top: 4px;
-  font-size: 0.85em;
 }
 .banner_qR_Jng {
   display: flex;
@@ -13331,6 +13817,39 @@ span.indicator_a_iRsA.cold_a_iRsA {
   gap: 6px;
   font-size: 0.9em;
 }
+.content_7sDHtw {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.icon_7sDHtw {
+  flex-shrink: 0;
+}
+.text_7sDHtw {
+  overflow-wrap: anywhere;
+  flex: 1;
+  min-width: 0;
+}
+.note_7sDHtw {
+  display: block;
+  font-weight: 400;
+}
+.actionButton_7sDHtw {
+  background-color: var(--app-button-background);
+  color: var(--app-button-foreground);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  border: none;
+  border-radius: 4px;
+  flex-shrink: 0;
+  padding: 2px 10px;
+}
+.actionButton_7sDHtw:hover {
+  background-color: var(--app-button-hover-background);
+}
 .usageLink_I-P6bg {
   font: inherit;
   color: inherit;
@@ -13594,39 +14113,6 @@ span.indicator_a_iRsA.cold_a_iRsA {
 }
 .button_Krs1lQ:hover:not(:disabled) {
   filter: brightness(1.1);
-}
-.toggle_0c4GDA {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.label_0c4GDA {
-  color: var(--app-secondary-foreground);
-  font-size: 0.85em;
-}
-.track_0c4GDA {
-  background: var(--app-input-border);
-  position: relative;
-  border-radius: 9px;
-  width: 32px;
-  height: 18px;
-  transition: background 0.15s;
-}
-.trackOn_0c4GDA {
-  background: var(--app-accent-color);
-}
-.thumb_0c4GDA {
-  background: var(--app-primary-foreground);
-  position: absolute;
-  border-radius: 50%;
-  width: 14px;
-  height: 14px;
-  transition: left 0.15s;
-  top: 2px;
-  left: 2px;
-}
-.thumbOn_0c4GDA {
-  left: 16px;
 }
 .message_iGpD1w {
   color: var(--app-primary-foreground);
@@ -14725,8 +15211,12 @@ span.indicator_a_iRsA.cold_a_iRsA {
   padding: 0 8px;
   font-family: inherit;
 }
-.sessionItem_OOQiHg:hover,
-.sessionItem_OOQiHg.focused_OOQiHg {
+.sessionItem_OOQiHg:where(
+  :hover,
+  :focus-visible,
+  :has(:focus-visible),
+  [data-highlighted]
+) {
   background: var(--app-list-hover-background);
 }
 .sessionItem_OOQiHg.active_OOQiHg {
@@ -14749,7 +15239,6 @@ span.indicator_a_iRsA.cold_a_iRsA {
   background: color-mix(in srgb, var(--app-claude-orange), transparent 80%);
   color: inherit;
   border-radius: 2px;
-  padding: 0 1px;
 }
 .sessionMeta_OOQiHg {
   display: grid;
@@ -14770,18 +15259,23 @@ span.indicator_a_iRsA.cold_a_iRsA {
   visibility: hidden;
   gap: 2px;
 }
-.sessionItem_OOQiHg:hover
+.sessionItem_OOQiHg:where(
+    :hover,
+    :focus-visible,
+    :has(:focus-visible),
+    [data-highlighted]
+  )
   .sessionMeta_OOQiHg:has(.sessionActions_OOQiHg)
   .sessionTime_OOQiHg {
   visibility: hidden;
 }
-.sessionItem_OOQiHg.focused_OOQiHg
-  .sessionMeta_OOQiHg:has(.sessionActions_OOQiHg)
-  .sessionTime_OOQiHg {
-  visibility: hidden;
-}
-.sessionItem_OOQiHg:hover .sessionActions_OOQiHg,
-.sessionItem_OOQiHg.focused_OOQiHg .sessionActions_OOQiHg {
+.sessionItem_OOQiHg:where(
+    :hover,
+    :focus-visible,
+    :has(:focus-visible),
+    [data-highlighted]
+  )
+  .sessionActions_OOQiHg {
   visibility: visible;
 }
 .actionButton_OOQiHg {
@@ -14861,6 +15355,13 @@ span.indicator_a_iRsA.cold_a_iRsA {
   outline: 1px solid var(--app-list-active-background);
   outline-offset: -1px;
 }
+.groupHeaderAction_OOQiHg {
+  visibility: hidden;
+}
+.groupHeader_OOQiHg:where(:hover, :focus-visible, :has(:focus-visible))
+  .groupHeaderAction_OOQiHg {
+  visibility: visible;
+}
 .dragImage_OOQiHg {
   position: fixed;
   background: var(--app-list-active-background);
@@ -14935,6 +15436,7 @@ span.indicator_a_iRsA.cold_a_iRsA {
   padding: var(--app-spacing-xlarge);
   border-radius: var(--corner-radius-small);
   user-select: text;
+  outline: 0;
   width: 380px;
   max-width: 90%;
 }
@@ -15322,690 +15824,4 @@ span.indicator_a_iRsA.cold_a_iRsA {
   color: var(--app-error-foreground);
   margin-top: 4px;
   font-size: 11px;
-}
-
-/* ─────────── правки форка ─────────── */
-
-/* Палитра с запасным ходом.
-   `--vscode-charts-*` тема даёт не всегда, а `color: var(--нет-такой)` — это
-   недействительное объявление: браузер выбрасывает его целиком, и текст
-   остаётся серым. Отличить «цвет не тот» от «цвета нет» на глаз нельзя, поэтому
-   у каждого цвета стоит запасной, а у запасного — свой. */
-body {
-  --fork-blue: var(
-    --vscode-charts-blue,
-    var(--vscode-terminal-ansiBlue, #4a9edb)
-  );
-  --fork-purple: var(
-    --vscode-charts-purple,
-    var(--vscode-terminal-ansiMagenta, #b180d7)
-  );
-  --fork-green: var(
-    --vscode-charts-green,
-    var(--vscode-terminal-ansiGreen, #3f9950)
-  );
-  --fork-orange: var(
-    --vscode-charts-orange,
-    var(--vscode-terminal-ansiYellow, #d18616)
-  );
-  --fork-yellow: var(
-    --vscode-charts-yellow,
-    var(--vscode-terminal-ansiYellow, #d1a416)
-  );
-}
-
-/* Рабочий каталог сессии, полоска над полем ввода. Имя без хеша модуля —
-   так видно, что класс наш, а не пришёл из сборки апстрима. */
-.forkCwdStrip {
-  padding: 2px 10px 4px;
-  font-size: 11px;
-  line-height: 1.4;
-  font-family: var(--vscode-editor-font-family, monospace);
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.75;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: default;
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  border-radius: 4px;
-  appearance: none;
-}
-.forkCwdStrip:hover {
-  opacity: 1;
-}
-
-/* Пока сессия пуста, каталог ещё можно сменить — полоска становится кнопкой */
-.forkCwdStripEditable {
-  cursor: pointer;
-}
-.forkCwdStripEditable:hover {
-  background: var(--vscode-toolbar-hoverBackground);
-}
-.forkCwdStripEditable:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: -1px;
-}
-
-/* Сводка хода и цикла — строкой в ленте, между сообщениями */
-.forkNoteLine {
-  margin: 4px 0;
-  padding: 2px 0;
-  font-size: 11px;
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-variant-numeric: tabular-nums;
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.65;
-  cursor: default;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.forkNoteLine:hover {
-  opacity: 1;
-}
-
-/* Цвета сводки. Взяты из палитры темы (`--vscode-charts-*`), а не зашиты
-   шестнадцатеричными: на светлой теме зашитые превратились бы в нечитаемое.
-   Смысл тот же, что у Завра: прибавка — то, за чем следят; чтение и запись
-   кэша — две разные дороги одного расхода; пачка — единственное, чем ход можно
-   было сделать лучше. */
-.forkNoteAdd {
-  color: var(--vscode-foreground);
-  font-weight: 600;
-}
-.forkNoteRead {
-  color: var(--fork-blue);
-}
-.forkNoteWrite {
-  color: var(--fork-purple);
-}
-.forkNoteOut {
-  color: var(--fork-green);
-}
-.forkNoteBatch {
-  color: var(--fork-green);
-  font-weight: 600;
-}
-/* Один вызов за заход — пачки не было. Тихо. */
-.forkNoteSolo {
-  color: var(--vscode-descriptionForeground);
-}
-.forkNoteTime {
-  color: var(--fork-orange);
-  opacity: 0.85;
-}
-/* Конец цикла виден отчётливее хода: это граница «реплика → ответ» */
-.forkNoteEnd {
-  opacity: 0.85;
-  border-top: 1px solid var(--vscode-descriptionForeground);
-  padding-top: 5px;
-  margin-top: 7px;
-}
-.forkNoteEnd:hover {
-  opacity: 1;
-}
-
-/* Вызов инструмента раскрывается: заголовок — маркер, тело — под ним */
-.forkToolSummary {
-  cursor: pointer;
-}
-.forkToolSummary::-webkit-details-marker {
-  display: none;
-}
-.forkTool > .forkToolSummary::before {
-  content: "▸ ";
-  opacity: 0.5;
-}
-.forkTool[open] > .forkToolSummary::before {
-  content: "▾ ";
-}
-/* Знак рода действия. Цвет тот же, что у величин: читаем — синий, правим —
-   янтарный, ищем — фиолетовый. По колонке знаков лента листается глазами. */
-.forkGlyph {
-  display: inline-block;
-  width: 1.1em;
-  margin-right: 5px;
-  opacity: 0.8;
-  font-weight: 400;
-}
-.forkGlyph-read {
-  color: var(--fork-blue);
-}
-.forkGlyph-edit {
-  color: var(--fork-orange);
-}
-.forkGlyph-find,
-.forkGlyph-mcp,
-.forkGlyph-mem {
-  color: var(--fork-purple);
-}
-.forkGlyph-shell {
-  color: var(--fork-green);
-}
-.forkGlyph-task,
-.forkGlyph-skill {
-  color: var(--fork-yellow);
-}
-.forkGlyph-web {
-  color: var(--vscode-textLink-foreground);
-}
-.forkGlyph-todo,
-.forkGlyph-think,
-.forkGlyph-other {
-  color: var(--vscode-descriptionForeground);
-}
-
-/* Правка через MCP: путь с пометкой и дифф под ним */
-.forkDiffWrap {
-  margin: 6px 0;
-}
-.forkDiffPath {
-  font-family: var(--app-monospace-font-family);
-  font-size: 0.85em;
-  color: var(--vscode-descriptionForeground);
-  margin-bottom: 2px;
-}
-.forkDiffMark {
-  margin-left: 8px;
-  color: var(--fork-orange);
-}
-.forkCodeBlock {
-  margin: 0;
-  padding: 6px 8px;
-  border: 0.5px solid var(--app-input-border);
-  border-radius: 5px;
-  background: var(--app-tool-background);
-  font-family: var(--app-monospace-font-family);
-  font-size: 0.85em;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  max-height: 50vh;
-  overflow: auto;
-}
-
-.forkToolMeta {
-  color: var(--app-secondary-foreground);
-  opacity: 0.6;
-  font-size: 0.85em;
-}
-/* Размышление. Строка отмечает границу «здесь модель думала», и её ищут
-   глазами при прокрутке, — поэтому она не сливается с фоном. */
-.forkThinkingBare {
-  color: var(--fork-purple);
-  opacity: 0.75;
-}
-.forkThinkingBare:hover {
-  opacity: 1;
-}
-.thinkingV2_aHyQPQ > .thinkingSummary_aHyQPQ {
-  color: var(--fork-purple);
-  opacity: 0.8;
-}
-.thinkingV2_aHyQPQ[open] > .thinkingSummary_aHyQPQ {
-  opacity: 1;
-}
-/* Выжимка размышления: отбита слева чертой, как цитата, и читается своим
-   размером. Без этого она сливалась с ответом — а это разные вещи: одно модель
-   думала, другое сказала. */
-.thinkingContent_aHyQPQ {
-  border-left: 2px solid var(--fork-purple);
-  padding: 2px 0 2px 10px;
-  margin-left: 2px;
-  opacity: 0.9;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-.thinkingContent_aHyQPQ pre,
-.thinkingContent_aHyQPQ code {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* Ответ Serena: символ строкой, тело — вложенной складкой */
-.forkSrGroup + .forkSrGroup {
-  margin-top: 8px;
-}
-.forkSrFile {
-  font-family: var(--app-monospace-font-family);
-  font-size: 0.85em;
-  opacity: 0.6;
-  margin-bottom: 2px;
-}
-.forkSrCount {
-  margin-left: 6px;
-  opacity: 0.7;
-}
-.forkSrRow {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  font-family: var(--app-monospace-font-family);
-  font-size: 0.85em;
-}
-.forkSrKind {
-  color: var(--app-secondary-foreground);
-  opacity: 0.7;
-  font-size: 0.9em;
-  min-width: 58px;
-  display: inline-block;
-}
-.forkSrKind.is-function,
-.forkSrKind.is-method,
-.forkSrKind.is-ctor {
-  color: var(--fork-blue);
-  opacity: 1;
-}
-.forkSrKind.is-class,
-.forkSrKind.is-struct,
-.forkSrKind.is-interface,
-.forkSrKind.is-enum {
-  color: var(--fork-orange);
-  opacity: 1;
-}
-.forkSrKind.is-variable,
-.forkSrKind.is-const,
-.forkSrKind.is-field,
-.forkSrKind.is-property {
-  color: var(--fork-green);
-  opacity: 1;
-}
-.forkSrName {
-  font-weight: 600;
-  color: var(--vscode-foreground);
-}
-.forkSrPath,
-.forkSrLine {
-  opacity: 0.55;
-}
-.forkSrBody {
-  margin: 2px 0 6px;
-}
-.forkSrBody > summary {
-  cursor: pointer;
-  font-size: 0.8em;
-  opacity: 0.55;
-  list-style: none;
-}
-.forkSrBody > summary::-webkit-details-marker {
-  display: none;
-}
-.forkSrBody > summary::before {
-  content: "▸ ";
-}
-.forkSrBody[open] > summary::before {
-  content: "▾ ";
-}
-.forkSrLines {
-  margin: 0;
-}
-
-/* Раскрытое тело не обрезается 60 пикселями, а прокручивается */
-.forkTool[open] .toolBodyRowContent_ZUQaOA {
-  mask-image: none;
-  overflow: auto;
-  max-height: 60vh;
-}
-
-/* Длинная строка переносится, а не уезжает за край.
-   У `pre` по умолчанию `white-space: pre` — переносов нет вовсе, — а апстрим
-   добавляет сверху `overflow: hidden`. Вдвоём это значит, что хвост строки
-   просто исчезает: полосы прокрутки нет, и о том, что текст продолжается,
-   узнать неоткуда. Именно так пропадал вывод Serena и ответ AskUserQuestion. */
-.forkTool pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  overflow: visible;
-  tab-size: 2;
-}
-
-/* Строка над полем ввода: слева путь, справа счётчики отрезка */
-.forkCwdRow {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-.forkCwdRow > .forkCwdStrip {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.forkTokens {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding-right: 10px;
-  font-size: 11px;
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-variant-numeric: tabular-nums;
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.8;
-  white-space: nowrap;
-  cursor: default;
-}
-.forkTokens:hover {
-  opacity: 1;
-}
-/* Контекст — величина, за которой следят чаще прочего: по ней решают, когда
-   сжиматься. Поэтому она читается как число, а не как оговорка. */
-.forkTokCtx {
-  color: var(--vscode-foreground);
-}
-.forkTokCtxPct {
-  margin-left: 4px;
-  opacity: 0.7;
-}
-.forkTokCtxHigh,
-.forkTokCtxHigh .forkTokCtxPct {
-  color: var(--vscode-editorWarning-foreground);
-  opacity: 1;
-}
-/* Те же три дороги, что и в сводке, теми же цветами: ↓ читаем, ↑ пишем,
-   ↗ выход. Один цвет на величину во всех местах — иначе их приходится
-   опознавать заново в каждом. */
-.forkTokCache {
-  color: var(--fork-blue);
-}
-.forkTokCacheWrite {
-  color: var(--fork-purple);
-  opacity: 1;
-}
-.forkTokOut {
-  color: var(--fork-green);
-}
-.forkTokSeg {
-  opacity: 0.6;
-}
-/* Счётчики чужой ленты. Цвет тот же, а вот «агент» слева гореть обязан:
-   единственное, что отличает эти числа от моих, — чей они счёт. */
-.forkTokensAgent > .forkTokSeg {
-  color: var(--vscode-textLink-foreground);
-  opacity: 1;
-}
-
-/* Путь, ветка и знак «завести рядом» */
-.forkCwdPath {
-  color: var(--vscode-foreground);
-  opacity: 0.85;
-}
-.forkCwdBranch {
-  color: var(
-    --vscode-gitDecoration-modifiedResourceForeground,
-    var(--fork-orange)
-  );
-}
-.forkCwdPlus {
-  color: var(--vscode-textLink-foreground);
-}
-
-/* Полоса под строкой ввода: контекст и окна лимита.
-   Геометрия метра повторяет Завра — 84×6, скругление 2, три порога цвета. */
-.forkHud {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 10px 2px;
-  font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-}
-.forkHudSep {
-  opacity: 0.35;
-}
-/* Правый край строки: подсказка о сжатии и удалённое управление одной группой */
-.forkHudRight {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: auto;
-}
-.forkRemote {
-  opacity: 0.6;
-  white-space: nowrap;
-}
-/* «Пора сжиматься» — тем же цветом, что и подчёркивание счётчика чтения */
-.forkCompactHint {
-  white-space: nowrap;
-  cursor: default;
-}
-.forkCompactHint-soft {
-  color: var(--vscode-charts-yellow, var(--fork-yellow));
-}
-.forkCompactHint-warm {
-  color: var(--vscode-charts-orange, var(--fork-orange));
-}
-.forkCompactHint-hot {
-  color: var(--vscode-editorError-foreground);
-}
-/* Счётчик прочитанного из кэша: подчёркивание по накопленному за отрезок */
-.forkRead-soft,
-.forkRead-warm,
-.forkRead-hot {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
-}
-.forkRead-soft {
-  text-decoration-color: var(--vscode-charts-yellow, var(--fork-yellow));
-}
-.forkRead-warm {
-  text-decoration-color: var(--vscode-charts-orange, var(--fork-orange));
-}
-.forkRead-hot {
-  text-decoration-color: var(--vscode-editorError-foreground);
-}
-.forkRemoteOn {
-  color: var(--vscode-charts-green, var(--fork-green));
-  opacity: 1;
-}
-
-/* форк: агенты сессии — по строке на брата, под полосой расхода */
-.forkAgentBar {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 0 10px 4px;
-  font-size: 11px;
-}
-.forkAgentRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 2px 6px;
-  border: none;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--vscode-descriptionForeground);
-  font: inherit;
-  font-size: 11px;
-  text-align: left;
-  cursor: pointer;
-}
-.forkAgentRow:hover {
-  background: var(--vscode-list-hoverBackground);
-}
-.forkAgentRowOn {
-  background: var(--vscode-list-activeSelectionBackground);
-  color: var(--vscode-list-activeSelectionForeground);
-}
-.forkAgentGlyph {
-  flex: none;
-  width: 10px;
-  text-align: center;
-}
-.forkAgentGlyph-running {
-  color: var(--vscode-charts-blue, var(--fork-blue));
-  animation: forkAgentPulse 1.4s ease-in-out infinite;
-}
-.forkAgentGlyph-done {
-  color: var(--vscode-charts-green, var(--fork-green));
-}
-.forkAgentGlyph-error {
-  color: var(--vscode-editorError-foreground);
-}
-@keyframes forkAgentPulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-.forkAgentGlyph-bg {
-  color: var(--vscode-charts-purple, var(--fork-purple));
-}
-.forkAgentRowFlat {
-  cursor: default;
-}
-.forkAgentRowFlat:hover {
-  background: transparent;
-}
-.forkAgentStop {
-  flex: none;
-  margin-left: 6px;
-  padding: 0 5px;
-  border: none;
-  border-radius: 3px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 9px;
-  opacity: 0.5;
-  cursor: pointer;
-}
-.forkAgentStop:hover {
-  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.2));
-  color: var(--vscode-editorError-foreground);
-  opacity: 1;
-}
-/* «в фон» — на карточке выполняющегося инструмента и в строке основного */
-.forkBgButton {
-  flex: none;
-  margin-left: 8px;
-  padding: 0 6px;
-  border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.35));
-  border-radius: 3px;
-  background: transparent;
-  color: var(--vscode-descriptionForeground);
-  font: inherit;
-  font-size: 10px;
-  line-height: 15px;
-  opacity: 0.65;
-  cursor: pointer;
-}
-.forkBgButton:hover {
-  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.2));
-  color: var(--vscode-charts-purple, var(--fork-purple));
-  opacity: 1;
-}
-/* Вход в ленту агента. Форма та же, что у «в фон»: обе кнопки живут в одной
-   строке заголовка, и разная форма читалась бы как разная важность. */
-.forkLaneButton {
-  flex: none;
-  margin-left: 8px;
-  padding: 0 6px;
-  border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.35));
-  border-radius: 3px;
-  background: transparent;
-  color: var(--vscode-descriptionForeground);
-  font: inherit;
-  font-size: 10px;
-  line-height: 15px;
-  opacity: 0.65;
-  cursor: pointer;
-}
-.forkLaneButton:hover {
-  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.2));
-  color: var(--vscode-charts-purple, var(--fork-purple));
-  opacity: 1;
-}
-.forkAgentDepth {
-  flex: none;
-  opacity: 0.5;
-}
-.forkAgentLabel {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.forkAgentTail {
-  margin-left: auto;
-  flex: none;
-  opacity: 0.6;
-  font-variant-numeric: tabular-nums;
-}
-.forkMeter {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  cursor: default;
-}
-.forkMeterLabel {
-  opacity: 0.75;
-}
-.forkMeterBar {
-  display: inline-block;
-  width: 84px;
-  height: 6px;
-  border-radius: 2px;
-  background: var(--vscode-editorWidget-background, rgba(127, 127, 127, 0.25));
-  overflow: hidden;
-}
-.forkMeterFill {
-  display: block;
-  height: 100%;
-  background: var(--vscode-progressBar-background);
-  transition: width 120ms ease-out;
-}
-.forkMeterPct {
-  font-variant-numeric: tabular-nums;
-}
-.forkMeterTail {
-  opacity: 0.6;
-}
-.forkMeterMute {
-  opacity: 0.5;
-}
-/* «Лента агента» — не украшение, а признак того, что числа рядом ЧУЖИЕ.
-   Поэтому плашка, а не приглушённая подпись: приглушённое читается как
-   второстепенное, а здесь это первое, что надо знать про всю полосу. */
-.forkMeterAgent {
-  padding: 0 6px;
-  border-radius: 3px;
-  color: var(--vscode-badge-foreground);
-  background: var(--vscode-badge-background);
-  opacity: 0.95;
-}
-.forkMeterWarm .forkMeterFill {
-  background: var(--vscode-editorWarning-foreground);
-}
-.forkMeterWarm .forkMeterPct {
-  color: var(--vscode-editorWarning-foreground);
-}
-.forkMeterHot .forkMeterFill {
-  background: var(--vscode-editorError-foreground);
-}
-.forkMeterHot .forkMeterPct {
-  color: var(--vscode-editorError-foreground);
-}
-
-/* Каталог сессии в списке истории, рядом со временем */
-.forkSessionCwd {
-  font-size: 11px;
-  font-family: var(--vscode-editor-font-family, monospace);
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.7;
-  margin-left: 6px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  min-width: 0;
 }
