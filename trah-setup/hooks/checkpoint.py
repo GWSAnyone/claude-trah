@@ -26,6 +26,7 @@ CLAUDE.md, безусловные правила, auto memory и системн�
 своими силами нельзя, две редакции одного правила разъезжаются молча.
 """
 
+import glob
 import json
 import os
 import re
@@ -637,7 +638,7 @@ def where() -> int:
             "Без него имя указателя выродится в общее на все сессии этой "
             "машины, и параллельные сессии затрут друг друга.\n")
         return 1
-    scoped, _, _ = paths(os.getcwd(), session_id)
+    scoped, _, _ = paths(session_cwd(session_id), session_id)
     sys.stdout.write(scoped + "\n")
     return 0
 
@@ -660,6 +661,37 @@ def transcripts_dir(cwd: str) -> str:
     """
     return os.path.join(os.path.expanduser("~"), ".claude", "projects",
                         re.sub(r"[^A-Za-z0-9-]", "-", os.path.abspath(cwd)))
+
+
+def session_cwd(session_id: str) -> str:
+    """cwd сессии — тот самый, что хуки получают в payload.
+
+    Скрипт, который модель зовёт из Bash (`compact-order.py`, `checkpoint.py
+    path`), видит cwd своего процесса, а тот уезжает за первым же `cd` в
+    команде. Тогда указатель ложился в `<другой каталог>/.claude`, а `guard` и
+    `compact-continue` искали его в cwd из payload: сжатие отбивалось словами
+    «чекпоинта нет», заказ терял продолжение. В окружении cwd сессии нет, в
+    стенограмме есть — поле `cwd` у записей. Нет стенограммы — cwd процесса.
+    """
+    if session_id:
+        маска = os.path.join(os.path.expanduser("~"), ".claude", "projects",
+                             "*", session_id + ".jsonl")
+        for path in glob.glob(маска):
+            try:
+                with open(path, "rb") as f:
+                    f.seek(0, os.SEEK_END)
+                    f.seek(max(0, f.tell() - 262144))
+                    хвост = f.read().decode("utf-8", "replace")
+            except OSError:
+                continue
+            for line in reversed(хвост.splitlines()):
+                try:
+                    cwd = json.loads(line).get("cwd")
+                except (ValueError, AttributeError):
+                    continue
+                if cwd:
+                    return cwd
+    return os.getcwd()
 
 
 def own_suffix(name: str, host: str) -> str:

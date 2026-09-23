@@ -59,8 +59,10 @@ def чекпоинт(каталог: str, session_id: str, возраст_мин
 
 
 def run(cwd: str, аргументы: list[str], сокет_путь: str | None,
-        session_id: str = "abcdef12-0000"):
+        session_id: str = "abcdef12-0000", дом: str | None = None):
     env = dict(os.environ, TRAH_HOOKS_DIR=ХУКИ, CLAUDE_CODE_SESSION_ID=session_id)
+    if дом:
+        env["HOME"] = env["USERPROFILE"] = дом
     env.pop("CLAUDE_PID", None)
     if сокет_путь:
         env["CLAUDE_CODE_MESSAGING_SOCKET"] = сокет_путь
@@ -168,6 +170,32 @@ def main() -> int:
             run(tmp, [], ухо.адрес, session_id="aaaaaaaa-1111")
             код, вых, ош = run(tmp, [], ухо.адрес, session_id="bbbbbbbb-2222")
             check("заказ соседней сессии не мешает", код == 0, ош[:200])
+        finally:
+            ухо.закрыть()
+
+    # ── cwd сессии берётся из стенограммы, а не из процесса ──────────────────
+    # Модель зовёт скрипт из Bash, и `cd` в той же команде уводит cwd процесса.
+    # Хуки же ищут чекпоинт в cwd из payload — он и записан в стенограмме.
+    print("cwd сессии")
+    with tempfile.TemporaryDirectory() as tmp:
+        ухо = Ухо(str(Path(tmp) / "сессия.sock"))
+        try:
+            дом, сессия, чужой = (Path(tmp) / и for и in ("дом", "проект", "чужой"))
+            чужой.mkdir()
+            стенограмма = дом / ".claude" / "projects" / "X" / "cccccccc-3333.jsonl"
+            стенограмма.parent.mkdir(parents=True)
+            стенограмма.write_text(
+                json.dumps({"type": "user", "cwd": str(сессия)}) + "\n"
+                + json.dumps({"type": "last-prompt"}) + "\n", encoding="utf-8")
+            чекпоинт(str(сессия), "cccccccc-3333", возраст_мин=1)
+            код, вых, ош = run(str(чужой), ["--dry-run"], ухо.адрес,
+                               session_id="cccccccc-3333", дом=str(дом))
+            check("чекпоинт найден в cwd сессии, хотя процесс в чужом каталоге",
+                  код == 0, ош[:200])
+            код, вых, ош = run(str(чужой), ["--dry-run"], ухо.адрес,
+                               session_id="dddddddd-4444", дом=str(дом))
+            check("без стенограммы — cwd процесса, и там чекпоинта нет",
+                  код == 1 and "чекпоинта нет" in ош, ош[:200])
         finally:
             ухо.закрыть()
 

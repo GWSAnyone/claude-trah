@@ -14,6 +14,22 @@
 
 ## Где я сейчас
 
+**Обновлено 2026-09-23 14:55.**
+**Фаза:** 5 — живая проверка `sys-compact-on-order`. Копия собрана (`8395b79`), эта
+сессия уже идёт на `~/.local/share/claude/trah/current.exe` (`cfg trah`, `TRAH_MODE=1`).
+**В работе прямо сейчас:** заказан `/compact` через `python ~/.claude/hooks/compact-order.py`.
+**Следующее действие:** посмотреть в стенограмме, исполнился ли кадр командой
+(`<command-name>/compact</command-name>` после кадра с `selfSent`) — если да, фаза 5
+закрыта, дальше дефект 7 (`compact-order` берёт cwd процесса) и пункты «Дальше» 3–7;
+если `/compact` приехал текстом — разбирать `selfSent` (`childTokenPresented`) на Windows.
+**Незакоммичено:** `D:\claude-trah` — только фантомы CRLF (16 файлов, содержимое не
+изменено); коммиты `7feab62`, `8395b79` не запушены.
+**Открытые вопросы:** push ветки `windows`; удалить ли ветки `worktree-agent-*` в
+`D:\asynchronus` (правки 41 worktree сохранены в `D:\_backups\2026-09-23-cleanup\asynchronus-worktrees\`).
+
+Сделано после переключения: хаб TAUSIK `ff71ce8` — bootstrap больше не стирает скиллы
+проекта, роздано на 14 проектов без потерь (снимок `pre-sync\`); `mis-etalon` в реестре.
+
 Фаза 0 сделана: `D:\_backups\2026-09-23-cleanup\` — `claude-config.zip` (без
 стенограмм и кешей, 28 932 записи), `tausozavr-uncommitted.patch` (git diff --binary),
 `tausozavr-untracked.zip` (14 файлов). Клон trah на ветке `windows`.
@@ -84,8 +100,7 @@
 Решения владельца по ходу: sequential-thinking — убрать (раздел и инструменты агентов убраны);
 tausikd — остановить и убрать из автозапуска; коммит ветки — да.
 
-**Не закоммичено после `3bea5e5`:** правка `trah-setup/global-CLAUDE.md` (заглушка без
-«ноутбука» и мёртвого бэкапа).
+`trah-setup/global-CLAUDE.md` закоммичен — `7feab62`.
 
 ## Хаб TAUSIK (23.09, после переключения)
 
@@ -112,7 +127,7 @@ tausikd — остановить и убрать из автозапуска; к
 
 ## Дальше
 
-1. **Фаза 5 — собрано 23.09, не проверено вживую.** `~/.local/share/claude/trah/2.1.280.exe`
+1. **Фаза 5 — закрыта 23.09, проверено вживую.** `~/.local/share/claude/trah/2.1.280.exe`
    + symlink `current.exe`; `check` 33/33 якоря, манифест 24/24 записано, `verify` — 14
    проверяемых доставлены, `trah.py tests` 33/33. Форк `~/.local/share/tweakcc-fixed`
    (`059a5e2 Support CC 2.1.280`), сборка `npx pnpm@10`. Правки сборщика под Windows:
@@ -120,9 +135,11 @@ tausikd — остановить и убрать из автозапуска; к
    `S/w/g/b/C`, windows `h/p/g/w/E`); `сумма` через hashlib; черновик сверки латиницей (LIEF
    не открывает кириллический путь); `encoding="utf-8"` у subprocess (cp1251 терял «ОТЧЁТ»);
    правки файлом `edits.json`/`check.json` — `node -e` упирался в 32 767 (`ENAMETOOLONG`).
-   **Осталось:** живая проверка в сессии `claude trah` — кадр `/compact` по pipe от потомка
-   сессии должен исполниться командой, а не приехать текстом. Потом петля (`compact-order`,
-   дефект 7).
+   **Живая проверка 23.09 11:55Z:** `compact-order.py` из сессии 87b3fb09 → в стенограмме
+   запись `"content":"/compact"` с `origin {kind:peer, selfSent:true}`, за ней
+   `compact_boundary` (`trigger: manual`, 194 567 → 11 159 токенов), затем
+   `compact-continue` вернул работу сам. Петля заказного сжатия на Windows работает.
+   Дефект 7 починен тем же днём (см. «Дефекты trah»).
 2. Хаб TAUSIK: `/commit` велит Co-Authored-By и heredoc — противоречит брифу; хаб на ветке
    `release/1.8-batch-s126`, а прежний бриф говорил `port/hook-coverage`. Решение владельца.
 3. Остаток `~/.tausik` (держат живые MCP-серверы) — удалить после закрытия сессий.
@@ -159,7 +176,10 @@ tausikd — остановить и убрать из автозапуска; к
 4. `nudge-compact.py:437` — ступень записана до отправки, отправка без try.
 5. `checkpoint.py:472` — на Windows `nudge()` падает (getuid) → PreCompact-сторож не блокирует.
 6. `checkpoint.py:646` — `transcripts_dir` на Windows вырождается в cwd → sweep увезёт чужие чекпоинты.
-7. `compact-order` берёт cwd процесса, `guard`/`continue` — cwd из payload.
+7. ~~`compact-order` берёт cwd процесса, `guard`/`continue` — cwd из payload.~~ Починено
+   23.09: `checkpoint.session_cwd()` берёт `cwd` из хвоста стенограммы сессии; им пользуются
+   `compact-order.py` и `checkpoint.py path`. Проверка в `compact-order.test.py` («cwd
+   сессии»). Разложено в `~/.claude/hooks`, прежние копии — `D:\_backups\2026-09-23-cleanup\hooks-before-defect7`.
 8. `project-template/.claude/*` не в git (`.gitignore: .claude/`).
 9. `covered_by` у `trah-delegation` недостижим; `dev/check-brief-delivery.py` падает на импорте.
 10. POSIX-предположения: `sha256sum`, symlink `current`, `/tmp`, `lib/python*/site-packages`,

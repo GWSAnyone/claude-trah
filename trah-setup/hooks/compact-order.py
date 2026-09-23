@@ -108,8 +108,8 @@ def main(аргументы: list[str]) -> int:
         return 2
 
     cp = чекпоинт_модуль()
-    cwd = os.getcwd()
     session_id = os.environ.get("CLAUDE_CODE_SESSION_ID", "")
+    cwd = cp.session_cwd(session_id)
     путь_чекпоинта = cp.resolve_checkpoint(cwd, session_id)
     данные = cp.load(путь_чекпоинта)
 
