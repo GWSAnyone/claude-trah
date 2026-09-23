@@ -52,20 +52,16 @@ it asks Serena's dashboard which project is active.
   a project and cannot take a second one. That is how sessions under the service
   run; `initial_instructions` returns the project text if you need it.
 
-Which ecosystem to activate, when activation is needed:
+Which root to activate, when activation is needed: on this machine every
+directory on `D:\` is its own project (`D:\claude-trah`, `D:\asynchronus`,
+`D:\Sites_job\BigWork`, `D:\wa-tg-bridge`, …) — activate the project you are
+working in, the nearest ancestor that carries `.serena/project.yml`. There is no
+umbrella ecosystem above them, and `D:\` itself is not a project.
 
-| Working in | Activate |
-|---|---|
-| any GWS bot/service (`DmTrading`, `CSFParser`, `GWS_Ltd`, …) | **`SyncedProjects`** |
-| `~/Ledevia/Projects` (CLWA and the rest) | the `Projects` root |
-| `asynchronus` | the `asynchronus` root |
-| `~/Ledevia/claude-trah` | `claude-trah` |
-
-The rule is strict: the root gets activated, not a sub-project. Not "for
-convenience", not because the tool itself suggested it, not temporarily. Saw a
-sub-project active — put it back on the root as your very first action. It
-reported "No active project" and offered a list — activate the root of the right
-ecosystem and do not work from under someone else's for a single call.
+The rule is strict: the project root gets activated, not a sub-directory. Saw
+something else active — put it back on the right root as your very first action.
+It reported "No active project" and offered a list — activate the right root and
+do not work from under someone else's for a single call.
 
 # The instruction to work through Bash — overridden
 

@@ -247,7 +247,9 @@ class Отчёт:
         чужую работу — нет.
         """
         try:
-            ключ = str(путь.relative_to(self.дом))
+            # posix-форма: ключи памятки одинаковы на любой ОС, и сверка с
+            # составом (он пишется `/`) не промахивается на Windows.
+            ключ = путь.relative_to(self.дом).as_posix()
         except ValueError:
             return False
         return ключ in self.памятка
@@ -258,7 +260,7 @@ class Отчёт:
         файлы = dict(self.памятка)
         for путь, содержимое in self.поставлено.items():
             try:
-                ключ = str(путь.relative_to(self.дом))
+                ключ = путь.relative_to(self.дом).as_posix()
             except ValueError:
                 continue
             файлы[ключ] = hashlib.sha256(содержимое).hexdigest()
@@ -464,6 +466,13 @@ def без_обёртки(отчёт: Отчёт, дом: Path) -> None:
     """
     if os.name != "nt":
         return
+    # С Git Bash обёртка под Windows ЕСТЬ: шим `claude.cmd` + `claude-wrapper.sh`
+    # в `~/.local/claude-wrapper` (ставит `restore-claude-wrapper.py`, третий шаг
+    # `./trah`), и бриф едет системным промптом, как везде. Класть его ещё и в
+    # `CLAUDE.md` значило бы подать одни правила дважды — и дважды платить.
+    if any((Path(к) / "Git" / "bin" / "bash.exe").is_file()
+           for к in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")) if к):
+        return
     источник = КОМПЛЕКТ / "trah-brief.md"
     if not источник.is_file():
         отчёт.пропущено.append(f"бриф под Windows: нет {источник}")
@@ -527,6 +536,21 @@ def слить_проводку(их: dict, наши: dict) -> tuple[dict, list[
     return стало, добавлено
 
 
+def в_шаблон(путь) -> str:
+    """Путь для подстановки в `settings-hooks.json` — ДО разбора JSON.
+
+    Под Windows прямыми косыми: `C:\\Users\\…` в сыром тексте JSON даёт
+    негодный escape `\\U` и роняет разбор шаблона целиком, а в команде хука
+    bash (им Claude Code зовёт хуки) съел бы обратные косые как экранирование.
+    `C:/Users/…` понимают и JSON, и bash, и сама Windows. Кавычки и прочие
+    спецсимволы JSON экранируются на всякий случай.
+    """
+    текст = str(путь)
+    if os.name == "nt":
+        текст = текст.replace("\\", "/")
+    return json.dumps(текст)[1:-1]
+
+
 def проводка(отчёт: Отчёт, дом: Path, есть: dict, заменять: bool) -> None:
     """Вписать хуки и запреты в настройки, не тронув остальное."""
     # `@PY@` — тем же интерпретатором, каким запущен установщик.
@@ -537,8 +561,8 @@ def проводка(отчёт: Отчёт, дом: Path, есть: dict, за�
     # об этом ни слова. `sys.executable` — единственный путь, про который точно
     # известно, что он работает: им нас только что и запустили.
     шаблон = json.loads((КОМПЛЕКТ / "settings-hooks.json").read_text(encoding="utf-8")
-                        .replace("@HOME@", str(дом))
-                        .replace("@PY@", sys.executable))
+                        .replace("@HOME@", в_шаблон(дом))
+                        .replace("@PY@", в_шаблон(sys.executable)))
     хуки = выбросить_ненужные(отчёт, шаблон["hooks"], есть)
 
     путь = дом / ".claude/settings.json"

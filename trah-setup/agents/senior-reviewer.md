@@ -8,7 +8,7 @@ description: |
   the traps — every claim with file:line. NOT a reviewer: it does not grade,
   does not propose edits, does not edit. Only a map of the terrain.
   Do not call it for pinpoint questions answered by a couple of Serena calls.
-tools: Read, Grep, Glob, WebSearch, WebFetch, mcp__serena__get_symbols_overview, mcp__serena__find_symbol, mcp__serena__find_referencing_symbols, mcp__serena__find_declaration, mcp__serena__find_implementations, mcp__serena__search_for_pattern, mcp__serena__find_file, mcp__serena__list_dir, mcp__serena__get_diagnostics_for_file, mcp__serena__list_memories, mcp__serena__read_memory, mcp__sequential-thinking__sequentialthinking
+tools: Read, Grep, Glob, WebSearch, WebFetch, mcp__serena__get_symbols_overview, mcp__serena__find_symbol, mcp__serena__find_referencing_symbols, mcp__serena__find_declaration, mcp__serena__find_implementations, mcp__serena__search_for_pattern, mcp__serena__find_file, mcp__serena__list_dir, mcp__serena__get_diagnostics_for_file, mcp__serena__list_memories, mcp__serena__read_memory
 model: inherit
 # Час, а не пять минут: к картографу возвращаются через `SendMessage` — уточнить
 # место, попросить дочитать соседний модуль, — и разрыв между заходами легко
@@ -100,7 +100,6 @@ at once and offer to narrow it, do not dive in at half strength.
    hypothesis, the code is the truth; name any divergence explicitly.
 4. Trace the paths: who calls it, what it calls, where the data comes from,
    where it goes.
-5. `sequential-thinking` — only for complex risk analysis, not by default.
 
 # Report format
 

@@ -35,11 +35,12 @@
 """
 import json
 import os
+import tempfile
 import re
 import sys
 from pathlib import Path
 
-СОСТОЯНИЕ = Path(os.environ.get("TMPDIR", "/tmp")) / "nudge-capability"
+СОСТОЯНИЕ = Path(os.environ["TMPDIR"] if os.path.isdir(os.environ.get("TMPDIR") or "") else tempfile.gettempdir()) / "nudge-capability"
 
 БЕЗОПАСНОСТЬ = (
     "This task is a security pass. There is a skill for it — `security` — which "

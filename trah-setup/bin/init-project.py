@@ -50,13 +50,13 @@ def разложить(куда: Path, писать: bool) -> dict:
         отн = источник.relative_to(ШАБЛОН)
         цель = куда / отн
         if цель.exists():
-            итог["было"].append(str(отн))
+            итог["было"].append(отн.as_posix())
             continue
         текст = источник.read_text(encoding="utf-8").replace("@PROJECT@", имя)
         if писать:
             цель.parent.mkdir(parents=True, exist_ok=True)
             цель.write_text(текст, encoding="utf-8")
-        итог["положено"].append(str(отн))
+        итог["положено"].append(отн.as_posix())
     return итог
 
 

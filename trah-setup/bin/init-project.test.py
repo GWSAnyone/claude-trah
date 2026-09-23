@@ -34,7 +34,7 @@ def check(имя: str, условие: bool, подробность: str = "") -
 print("init-project.py")
 
 # --- шаблон покрывает то, ради чего он есть ---------------------------------
-пути = {str(п.relative_to(ip.ШАБЛОН)) for п in ip.файлы_шаблона()}
+пути = {п.relative_to(ip.ШАБЛОН).as_posix() for п in ip.файлы_шаблона()}
 for обязательный in ("CLAUDE.md", ".claude/brief.md",
                      ".claude/rules/docs-layout.md",
                      "docs/plans/README.md", "docs/reports/README.md"):

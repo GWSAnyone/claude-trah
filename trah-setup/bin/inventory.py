@@ -136,7 +136,7 @@ def чужое(дом: Path, уст) -> dict:
         for файл in sorted(корень.glob(маска)):
             if not файл.is_file():
                 continue
-            отн = str(файл.relative_to(дом))
+            отн = файл.relative_to(дом).as_posix()
             if отн in наши_цели:
                 continue
             if файл.name.endswith(".test.py"):
@@ -259,7 +259,7 @@ def наши_команды(дом: Path, уст) -> set[str]:
     """
     файл = уст.КОМПЛЕКТ / "settings-hooks.json"
     текст = файл.read_text(encoding="utf-8") \
-        .replace("@HOME@", str(дом)).replace("@PY@", sys.executable)
+        .replace("@HOME@", уст.в_шаблон(дом)).replace("@PY@", уст.в_шаблон(sys.executable))
     шаблон = json.loads(текст)
     return {в.get("command") or ""
             for блоки in (шаблон.get("hooks") or {}).values()

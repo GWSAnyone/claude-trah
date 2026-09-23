@@ -28,6 +28,7 @@ CLAUDE.md, безусловные правила, auto memory и системн�
 
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -400,12 +401,18 @@ def nudge(cwd: str, session_id: str, reason: str) -> str:
     except ImportError as e:
         return f"sockmsg не нашёлся: {e}"
 
-    беда = sockmsg.послать(
-        f"Compaction was refused: {reason}. Update the record — the working "
-        "state, what was measured, what was tried and abandoned — then order "
-        "the compaction again. Continue the interrupted work afterwards; do "
-        "not ask what to do."
-    )
+    # Любая беда транспорта — строкой, не исключением. Упавший процесс на
+    # PreCompact CLI читает как «не блок»: так на Windows (нет `os.getuid`,
+    # нет `AF_UNIX`) сторож переставал сторожить, а сжатие шло без чекпоинта.
+    try:
+        беда = sockmsg.послать(
+            f"Compaction was refused: {reason}. Update the record — the working "
+            "state, what was measured, what was tried and abandoned — then order "
+            "the compaction again. Continue the interrupted work afterwards; do "
+            "not ask what to do."
+        )
+    except Exception as e:  # noqa: BLE001 — отказ в сжатии важнее толчка
+        беда = f"кадр не ушёл: {e}"
     if беда:
         return беда
     try:
@@ -642,9 +649,17 @@ RETIRED_DIR = "checkpoints-retired"
 
 
 def transcripts_dir(cwd: str) -> str:
-    """Каталог стенограмм этого проекта. CLI кодирует путь заменой `/` на `-`."""
+    """Каталог стенограмм этого проекта.
+
+    CLI кодирует путь заменой на `-` ВСЕГО, что не латиница, цифра или дефис:
+    `/home/u/x` → `-home-u-x`, `D:\\asynchronus` → `D--asynchronus`. Прежняя
+    замена одной `/` под Windows не меняла ничего, а `os.path.join` с
+    абсолютным `C:\\…` вторым аргументом отбрасывает первый — «каталогом
+    стенограмм» становился сам проект, и `sweep` судил о живости сессий по его
+    `*.jsonl`.
+    """
     return os.path.join(os.path.expanduser("~"), ".claude", "projects",
-                        os.path.abspath(cwd).replace("/", "-"))
+                        re.sub(r"[^A-Za-z0-9-]", "-", os.path.abspath(cwd)))
 
 
 def own_suffix(name: str, host: str) -> str:

@@ -44,12 +44,13 @@
 """
 import json
 import os
+import tempfile
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-СОСТОЯНИЕ = Path(os.environ.get("TMPDIR", "/tmp")) / "cache-tap"
+СОСТОЯНИЕ = Path(os.environ["TMPDIR"] if os.path.isdir(os.environ.get("TMPDIR") or "") else tempfile.gettempdir()) / "cache-tap"
 ДАЛЬШЕ = os.environ.get(
     "CACHE_TAP_NEXT", str(Path(__file__).resolve().parent / "claude-hud.sh"))
 
@@ -154,9 +155,26 @@ def main() -> int:
 
     if not Path(ДАЛЬШЕ).exists():
         return 0
-    р = subprocess.run([ДАЛЬШЕ] if os.access(ДАЛЬШЕ, os.X_OK)
-                       else ["bash", ДАЛЬШЕ], input=сырьё)
+    р = subprocess.run(команда_дальше(ДАЛЬШЕ), input=сырьё)
     return р.returncode
+
+
+def команда_дальше(путь: str) -> list[str]:
+    """Как запустить сборщик ниже.
+
+    Под Windows `os.access(X_OK)` истинно для любого существующего файла, и
+    `.sh` запускался напрямую — «не является приложением Win32». Там всё, что
+    не `.exe`/`.cmd`/`.bat`, отдаём bash'у Git, а не WSL-овскому из `System32`
+    (его `CreateProcess` нашёл бы раньше PATH).
+    """
+    if os.name != "nt":
+        return [путь] if os.access(путь, os.X_OK) else ["bash", путь]
+    if путь.lower().endswith((".exe", ".cmd", ".bat")):
+        return [путь]
+    for корень in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")):
+        if корень and os.path.isfile(os.path.join(корень, "Git", "bin", "bash.exe")):
+            return [os.path.join(корень, "Git", "bin", "bash.exe"), путь]
+    return ["bash", путь]
 
 
 if __name__ == "__main__":

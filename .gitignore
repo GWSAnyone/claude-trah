@@ -1,5 +1,8 @@
 __pycache__/
 *.pyc
 *.bak-*
-.claude/
-.serena/
+# Только корневые: `.claude/` на любой глубине отсекал и шаблон проекта
+# `trah-setup/project-template/.claude/`, и `./trah project` молча не клал
+# ни скелета брифа, ни правила раскладки.
+/.claude/
+/.serena/

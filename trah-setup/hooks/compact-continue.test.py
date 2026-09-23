@@ -33,33 +33,9 @@ def check(имя: str, условие: bool, подробность: str = "") -
         print(f"  ✗ {имя} {подробность}")
 
 
-class Ухо:
-    def __init__(self, путь: str):
-        self.путь = путь
-        self.строки: list[str] = []
-        self.сокет = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.сокет.bind(путь)
-        self.сокет.listen(4)
-        threading.Thread(target=self._слушать, daemon=True).start()
-
-    def _слушать(self) -> None:
-        while True:
-            try:
-                связь, _ = self.сокет.accept()
-            except OSError:
-                return
-            with связь:
-                связь.settimeout(2)
-                данные = b""
-                try:
-                    while кусок := связь.recv(65536):
-                        данные += кусок
-                except OSError:
-                    pass
-                self.строки += [с for с in данные.decode("utf-8", "replace").splitlines() if с.strip()]
-
-    def закрыть(self) -> None:
-        self.сокет.close()
+# Сессия-заглушка: общая для четырёх наборов; под Windows — именованный канал.
+sys.path.insert(0, ХУКИ)
+from ear_for_tests import Ухо  # noqa: E402
 
 
 def cp_модуль():
@@ -117,13 +93,13 @@ def main() -> int:
             чекпоинт(tmp, "aaaaaaaa-1111")
 
             # Метки нет — нажал человек.
-            код, вых, ош = run(tmp, "aaaaaaaa-1111", ухо.путь)
+            код, вых, ош = run(tmp, "aaaaaaaa-1111", ухо.адрес)
             time.sleep(0.5)
             check("без метки молчит", код == 0 and not ухо.строки, str(ухо.строки))
 
             # Метка свежая — заказала сессия.
             м = метка(tmp, "aaaaaaaa-1111")
-            код, вых, ош = run(tmp, "aaaaaaaa-1111", ухо.путь)
+            код, вых, ош = run(tmp, "aaaaaaaa-1111", ухо.адрес)
             time.sleep(0.6)
             check("со свежей меткой кадр уходит", len(ухо.строки) == 1, str(ухо.строки))
             check("метка съедена", not м.exists())
@@ -144,7 +120,7 @@ def main() -> int:
             # умещается круг отказа сторожа и обновление записи.
             старая = метка(tmp, "aaaaaaaa-1111", возраст_сек=90 * 60)
             ухо.строки.clear()
-            код, вых, ош = run(tmp, "aaaaaaaa-1111", ухо.путь)
+            код, вых, ош = run(tmp, "aaaaaaaa-1111", ухо.адрес)
             time.sleep(0.5)
             check("протухшая метка не подгоняет работу",
                   not ухо.строки, str(ухо.строки))
@@ -153,7 +129,7 @@ def main() -> int:
             # Метка соседней сессии — не наша.
             метка(tmp, "bbbbbbbb-2222")
             ухо.строки.clear()
-            код, вых, ош = run(tmp, "aaaaaaaa-1111", ухо.путь)
+            код, вых, ош = run(tmp, "aaaaaaaa-1111", ухо.адрес)
             time.sleep(0.5)
             check("метка другой сессии не считается своей",
                   not ухо.строки, str(ухо.строки))
@@ -166,7 +142,7 @@ def main() -> int:
         try:
             чекпоинт(tmp, "cccccccc-3333")
             метка(tmp, "cccccccc-3333")
-            код, вых, ош = run(tmp, "cccccccc-3333", ухо.путь, режим="off")
+            код, вых, ош = run(tmp, "cccccccc-3333", ухо.адрес, режим="off")
             time.sleep(0.4)
             check("выключатель работает", not ухо.строки, str(ухо.строки))
         finally:
@@ -185,7 +161,7 @@ def main() -> int:
         ухо2 = Ухо(str(Path(tmp) / "вторая.sock"))
         try:
             метка(tmp, "ffffffff-6666")
-            код, вых, ош = run(tmp, "ffffffff-6666", ухо2.путь)
+            код, вых, ош = run(tmp, "ffffffff-6666", ухо2.адрес)
             time.sleep(0.6)
             check("без чекпоинта кадр всё равно уходит",
                   len(ухо2.строки) == 1, str(ухо2.строки))

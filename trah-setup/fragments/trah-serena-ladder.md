@@ -39,8 +39,7 @@ A question about ANOTHER of the owner's projects, without leaving this session �
 `list_queryable_projects`, then `query_project`: it runs a read-only Serena tool
 in that project's context. Read-only is the whole of it; work in that tree still
 belongs to a session started inside it.
-After an edit — `get_diagnostics_for_symbol` on the edited symbol or
-`get_diagnostics_for_file` on the file: cheaper than a build, catches a typo in
+After an edit — `get_diagnostics_for_file` on the edited file: cheaper than a build, catches a typo in
 a name, a lost import, a type mismatch.
 
 Why the ladder is ordered exactly this way: symbolic tools understand

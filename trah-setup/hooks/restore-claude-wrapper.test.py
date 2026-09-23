@@ -90,7 +90,14 @@ def main() -> int:
         env = dict(os.environ)
         env.update({"HOME": home, "XDG_CACHE_HOME": os.path.join(root, "cache")})
         env.pop("CLAUDE_WRAPPER_TARGET", None)
-        out = subprocess.run([link, "--version"], capture_output=True, text=True,
+        запуск = [link]
+        if os.name == "nt":
+            # bash-скрипт Windows сам не запустит; posix-ветка — потому что
+            # проверяется выбор новейшей версии из `versions/`.
+            запуск = [os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"),
+                                   "Git", "bin", "bash.exe"), link]
+            env["CLAUDE_WRAPPER_PLATFORM"] = "Linux"
+        out = subprocess.run([*запуск, "--version"], capture_output=True, text=True,
                              env=env, cwd=root)
         check(out.stdout.splitlines() == ["--version"],
               "через восстановленную обёртку запускается новейшая версия",

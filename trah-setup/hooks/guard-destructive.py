@@ -81,9 +81,24 @@ HARD_BLOCK = [
     (
         # Только САМ корень или САМ домашний каталог. Подпути внутри дома
         # (`rm -rf ~/.cache/x`) — обычная работа, блокировать их нельзя.
-        r"\brm\s+(-\S*[rR]\S*f|-\S*f\S*[rR])\s+"
-        r"(/|~|~/|\$HOME|\$\{HOME\}|/\*|~/\*)(\s|$|[;&|])",
+        # Под Git Bash корень тома пишется ещё двумя способами — `/c` и `C:\`.
+        r"\brm\s+(-\S*[rR]\S*f|-\S*f\S*[rR])\s+[\"']?"
+        r"(/|~|~/|\$HOME|\$\{HOME\}|/\*|~/\*|/[A-Za-z]/?\*?|[A-Za-z]:[\\/]?\*?)[\"']?(\s|$|[;&|])",
         "rm -rf over the filesystem root or over the whole home directory.",
+    ),
+    (
+        # PowerShell делает то же другими словами, и посиксовый шаблон выше на
+        # нём не срабатывает: `rm` там — алиас `Remove-Item`, флаги `-Recurse
+        # -Force`. Целая оболочка проходила мимо гарда — не хитростью, а сменой
+        # оболочки. Регистр складываем: PowerShell его не различает.
+        #
+        # Ловим корень тома и домашний каталог целиком. Путь ВНУТРИ дерева
+        # (`D:\проект\tmp`) сюда не попадает намеренно: удаление своего каталога
+        # — обычная работа. (Перенесено из порта tausozavr, 23.08.2026.)
+        r"(?i)\b(remove-item|ri|rd|rmdir|del|erase)\b(\s+-\S+)*\s+"
+        r"[\"']?([A-Za-z]:\\?|~|\$HOME|\$env:USERPROFILE)[\\/]?\*?"
+        r"[\"']?(\s|$|[;&|])",
+        "Remove-Item over a drive root or over the whole home directory.",
     ),
     (
         r"\brm\b.*\.git/hooks/pre-commit",
@@ -741,6 +756,19 @@ def _owner_consented(payload: dict) -> tuple[bool, str]:
     refusal = _last_match(_REFUSAL, text)
     if refusal is not None and consent.start() < refusal.end():
         return False, "in the owner's last message the refusal comes after the consent"
+    # Отказ, стоящий ВПЛОТНУЮ перед согласием в одной фразе, управляет им:
+    # «не надо пока коммитить», «нет, сейчас не коммить». Правило «кто позже,
+    # тот и прав» читало первое как разрешение — отказ кончался раньше, чем
+    # начиналось «коммитить». Случайное «не надо» из ДРУГОЙ фразы (случай
+    # 19.08.2026) по-прежнему не гасит коммит: между ними граница предложения
+    # или больше пары слов.
+    if refusal is not None:
+        # Оба регэкспа съедают по граничному символу (`(?:\W|$)`, `(?:^|\W)`):
+        # точка после «не надо.» уходит в совпадение отказа. Смотрим промежуток
+        # вместе с этими символами, иначе граница фразы не видна.
+        between = text[refusal.end() - 1:consent.start() + 1]
+        if len(between) <= 26 and not re.search(r"[.!?;\n]", between):
+            return False, "in the owner's last message the consent is governed by a refusal"
     return True, ""
 
 

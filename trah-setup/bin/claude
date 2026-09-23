@@ -28,6 +28,35 @@ CACHE_DIR="${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/gws-claude-wrapper"
 # Сверено с `claude --help` версии 2.1.236.
 SUBCOMMANDS=" agents auth auto-mode doctor gateway import install mcp plugin plugins project setup-token ultrareview update upgrade "
 
+# ── 0. Windows (Git Bash) ────────────────────────────────────────────────────
+#
+# Под Windows обёртку зовёт шим `claude.cmd` (он стоит в PATH раньше
+# `~/.local/bin`, иначе `.EXE` выигрывает у `.CMD` по PATHEXT). Отличий от Linux
+# четыре, и каждое — ветка по `IS_WIN`, а не второй файл: две редакции одной
+# обёртки уже разъезжались молча.
+#   1) точка входа — КОПИЯ `~/.local/bin/claude.exe`, а не `versions/<v>`: файлы
+#      там лежат без `.exe`, и установщик Claude Code сам переносит свежую версию
+#      в копию при запуске, когда её никто не держит;
+#   2) проверки `-x` нет: права на исполнение Windows не хранит, Git Bash отвечает
+#      по расширению;
+#   3) пути, уходящие в `claude.exe` и `serena.exe`, переводятся `cygpath -w`:
+#      `/c/Users/…` Windows-программа не поймёт и молча поедет без правил;
+#   4) патченая копия — `trah/current.exe`: файл без расширения не запускается.
+IS_WIN=0
+# `CLAUDE_WRAPPER_PLATFORM` — только для проверок: гонять posix-ветку под Git Bash.
+case "${CLAUDE_WRAPPER_PLATFORM:-$(uname -s 2>/dev/null)}" in MINGW*|MSYS*|CYGWIN*) IS_WIN=1 ;; esac
+EXE=""
+[ "$IS_WIN" = 1 ] && EXE=".exe"
+ENTRY="${HOME:-}/.local/bin/claude.exe"
+
+win_path() {
+    if [ "$IS_WIN" = 1 ] && command -v cygpath >/dev/null 2>&1; then
+        cygpath -w "$1" 2>/dev/null || printf '%s' "$1"
+    else
+        printf '%s' "$1"
+    fi
+}
+
 # ── 1. Настоящий бинарь ──────────────────────────────────────────────────────
 #
 # Симлинк ~/.local/bin/claude обёртка собой заменила, значит цель выбираем сами.
@@ -68,7 +97,9 @@ resolve_binary() {
         if usable "$candidate"; then printf '%s' "$candidate"; return 0; fi
     fi
 
-    if [ -d "$SHARE_DIR/versions" ]; then
+    if [ "$IS_WIN" = 1 ] && usable "$ENTRY"; then printf '%s' "$ENTRY"; return 0; fi
+
+    if [ "$IS_WIN" = 0 ] && [ -d "$SHARE_DIR/versions" ]; then
         candidate=$(ls -1 "$SHARE_DIR/versions" 2>/dev/null | sort -V | tail -n 1)
         if [ -n "$candidate" ] && usable "$SHARE_DIR/versions/$candidate"; then
             printf '%s' "$SHARE_DIR/versions/$candidate"; return 0
@@ -80,7 +111,7 @@ resolve_binary() {
     for dir in ${PATH:-}; do
         IFS="$saved_ifs"
         [ -n "$dir" ] || continue
-        if usable "$dir/claude"; then printf '%s' "$dir/claude"; IFS="$saved_ifs"; return 0; fi
+        if usable "$dir/claude$EXE"; then printf '%s' "$dir/claude$EXE"; IFS="$saved_ifs"; return 0; fi
         IFS=':'
     done
     IFS="$saved_ifs"
@@ -91,7 +122,8 @@ resolve_binary() {
 # зациклился бы навсегда.
 usable() {
     [ -n "${1:-}" ] || return 1
-    [ -f "$1" ] && [ -x "$1" ] || return 1
+    [ -f "$1" ] || return 1
+    [ "$IS_WIN" = 1 ] || [ -x "$1" ] || return 1
     [ "$(readlink -f "$1" 2>/dev/null)" != "$WRAPPER_SELF" ]
 }
 
@@ -222,7 +254,7 @@ flag_supported() {
     # Поймано 26.08.2026 сразу после пересборки патча: вердикт пробы кэшируется
     # по подписи бинаря, пересборка её сменила, кэш протух — и проба пошла
     # заново, впервые из живого терминала.
-    err=$($timeout_cmd "$bin" --append-system-prompt-file /dev/null mcp </dev/null 2>&1 >/dev/null)
+    err=$($timeout_cmd "$bin" --append-system-prompt-file "$(win_path /dev/null)" mcp </dev/null 2>&1 >/dev/null)
     # «unknown option» — единственный ответ, который значит «не поддерживает».
     # Пропала подкоманда mcp, проба не запустилась, вывод пуст — всё это НЕ
     # доказывает отсутствия флага, и выдавать их за доказательство нельзя.
@@ -333,11 +365,16 @@ trah_mcp_config() {
 
     if root=$(trah_project_root) && [ -n "$root" ] && [ -d "$root" ]; then
         key=$(printf '%s' "$root" | md5sum 2>/dev/null | cut -d ' ' -f 1)
-        args='"--project","'"$root"'",'
+        # Путь уходит в JSON и в `serena.exe`: под Windows — `D:\…` с удвоенными
+        # обратными косыми, иначе JSON битый или путь чужой для Windows-программы.
+        local root_arg
+        root_arg=$(win_path "$root" | sed 's/\\/\\\\/g; s/"/\\"/g')
+        args='"--project","'"$root_arg"'",'
         # Корень называем ХУКУ явно, переменной. Спросить об этом больше некого:
         # панель нашего сервера выключена ниже (`--enable-web-dashboard false`),
         # и опрос портов отвечает сервером ЧУЖОЙ сессии.
-        export TRAH_SERENA_PROJECT="$root"
+        TRAH_SERENA_PROJECT=$(win_path "$root")
+        export TRAH_SERENA_PROJECT
         printf 'claude trah: Серена на %s\n' "$root" >&2
     else
         # Проекта нет — сервер поднимается без привязки. Ничего не индексируется
@@ -417,12 +454,12 @@ if [ "$TRAH_WORD" = 1 ]; then
     # Теперь `~/.claude/brief.md` — это бриф режима, а редакция службы
     # законсервирована рядом как `brief-zavr.md` и в сессии не подаётся.
 
-    if usable "$SHARE_DIR/trah/current"; then
-        CLAUDE_WRAPPER_TARGET="$SHARE_DIR/trah/current"
+    if usable "$SHARE_DIR/trah/current$EXE"; then
+        CLAUDE_WRAPPER_TARGET="$SHARE_DIR/trah/current$EXE"
         export CLAUDE_WRAPPER_TARGET
     else
         printf '%s\n' \
-            "claude trah: патченой сборки нет ($SHARE_DIR/trah/current) — запускаю штатную" >&2
+            "claude trah: патченой сборки нет ($SHARE_DIR/trah/current$EXE) — запускаю штатную" >&2
     fi
 
     # Разделы `# Delivering work` и `# Corrections` — принудительно.
@@ -440,7 +477,7 @@ if [ "$TRAH_WORD" = 1 ]; then
     : "${CLAUDE_CODE_BISON_CAIRN:=1}" "${CLAUDE_CODE_LARCH_CISTERN:=1}"
     export CLAUDE_CODE_BISON_CAIRN CLAUDE_CODE_LARCH_CISTERN
 
-    trah_mcp_config && TRAH_ARGS+=(--mcp-config "$TRAH_MCP")
+    trah_mcp_config && TRAH_ARGS+=(--mcp-config "$(win_path "$TRAH_MCP")")
 
     # Разрешающий флаг — как у службы.
     #
@@ -537,7 +574,7 @@ if wants_flag "$@"; then
     fi
 
     if [ -n "$BRIEF" ] && flag_supported "$BIN"; then
-        exec "$BIN" "${TRAH_ARGS[@]}" --append-system-prompt-file "$BRIEF" "$@"
+        exec "$BIN" "${TRAH_ARGS[@]}" --append-system-prompt-file "$(win_path "$BRIEF")" "$@"
     fi
 fi
 

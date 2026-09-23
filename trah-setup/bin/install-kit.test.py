@@ -222,7 +222,7 @@ def настройки_после(было=None) -> tuple[dict, list[str], dict]
         ik.проводка(отчёт, д, {у: "/usr/bin/" + у for у in ik.ТРЕБУЕТ.values()},
                     заменять=False)
     ждём = json.loads((ik.КОМПЛЕКТ / "settings-hooks.json").read_text(encoding="utf-8")
-                      .replace("@HOME@", str(д)).replace("@PY@", sys.executable))
+                      .replace("@HOME@", ik.в_шаблон(д)).replace("@PY@", ik.в_шаблон(sys.executable)))
     вышло = json.loads((д / ".claude/settings.json").read_text(encoding="utf-8"))
     return вышло, отчёт.руками, ждём
 
@@ -325,7 +325,7 @@ check("столкновение названо", any("checkpoint" in с for с i
 check("и вынесено человеку в «руками»",
       any("файл хозяина" in с for с in отчёт.руками))
 check("остальное при этом поставлено",
-      any("agents/senior-reviewer.md" in с for с in отчёт.сделано))
+      any("agents/senior-reviewer.md" in с.replace("\\", "/") for с in отчёт.сделано))
 
 # С разрешения — заменяем, но копия обязана остаться.
 д = дом_с_чужим(чужой_текст)

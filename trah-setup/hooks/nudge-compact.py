@@ -77,6 +77,7 @@ Bash доведён до 29 мс, и такой хук откатил бы ег�
 """
 import json
 import os
+import tempfile
 import sys
 import time
 from pathlib import Path
@@ -85,7 +86,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import goal  # noqa: E402
 import sockmsg  # noqa: E402
 
-СОСТОЯНИЕ = Path(os.environ.get("TMPDIR", "/tmp")) / "nudge-compact"
+СОСТОЯНИЕ = Path(os.environ["TMPDIR"] if os.path.isdir(os.environ.get("TMPDIR") or "") else tempfile.gettempdir()) / "nudge-compact"
 
 МИЛЛИОН = 1_000_000
 
@@ -215,7 +216,7 @@ def досчитать(стенограмма: str, сост: dict) -> dict:
             "прошлый": прошлый}
 
 
-КРАН = Path(os.environ.get("TMPDIR", "/tmp")) / "cache-tap"
+КРАН = Path(os.environ["TMPDIR"] if os.path.isdir(os.environ.get("TMPDIR") or "") else tempfile.gettempdir()) / "cache-tap"
 # Насколько несвежему крану ещё верим. Строка состояния обновляется раз в три
 # секунды, пока сессия рисуется; пять минут — это запас на окно не в фокусе.
 # Совсем протухшему не верим не потому, что число было бы неверным, а потому

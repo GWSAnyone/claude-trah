@@ -71,12 +71,38 @@ class Sandbox:
         elif target == "old":
             env["CLAUDE_WRAPPER_TARGET"] = self.fake_old
         env.update(env_extra or {})
-        return subprocess.run([WRAPPER, *args], cwd=cwd, env=env,
+        return subprocess.run([*ЗАПУСК, WRAPPER, *args], cwd=cwd, env=env,
                               capture_output=True, text=True)
 
 
+# Под Windows скрипт отдаём bash'у Git (не WSL из System32) и гоняем в нём
+# posix-ветку обёртки: эти проверки про неё, Windows-ветка проверяется своими.
+ЗАПУСК: list[str] = []
+if os.name == "nt":
+    for _корень in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")):
+        _bash = os.path.join(_корень or "", "Git", "bin", "bash.exe")
+        if _корень and os.path.isfile(_bash):
+            ЗАПУСК = [_bash]
+            break
+    os.environ.setdefault("CLAUDE_WRAPPER_PLATFORM", "Linux")
+
+
 def argv(proc: subprocess.CompletedProcess) -> list[str]:
-    return proc.stdout.splitlines()
+    строки = proc.stdout.splitlines()
+    if os.name != "nt" or not ЗАПУСК:
+        return строки
+    # Под Git Bash обёртка видит пути как `/tmp/…`; проверки ждут родные `C:\…`.
+    cygpath = os.path.join(os.path.dirname(os.path.dirname(ЗАПУСК[0])), "usr", "bin", "cygpath.exe")
+    if not os.path.isfile(cygpath):
+        return строки
+    # Переводим только существующие файлы: так подаёт бриф обёртка. Аргумент,
+    # переданный насквозь (`/tmp/x.md` в проверках «насквозь»), остаётся как был.
+    def родной(с: str) -> str:
+        if not с.startswith("/"):
+            return с
+        п = subprocess.run([cygpath, "-w", с], capture_output=True, text=True).stdout.strip()
+        return п if п and os.path.exists(п) else с
+    return [родной(с) for с in строки]
 
 
 def main() -> int:
@@ -199,7 +225,11 @@ def main() -> int:
         bad = os.path.join(root, "bad")
         unreadable = write(os.path.join(bad, ".claude", "brief.md"), "правила\n", 0o000)
         p = box.run(["-p", "x"], cwd=bad)
-        check(argv(p) == ["-p", "x"], "нечитаемый бриф — запуск без флага", str(argv(p)))
+        if os.name == "nt":
+            # Права 000 Windows не хранит: файл остаётся читаемым, проверять нечем.
+            print("  · нечитаемый бриф — под Windows неприменимо (chmod не действует)")
+        else:
+            check(argv(p) == ["-p", "x"], "нечитаемый бриф — запуск без флага", str(argv(p)))
         os.chmod(unreadable, 0o644)
 
         empty = os.path.join(root, "empty")

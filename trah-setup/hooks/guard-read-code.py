@@ -26,6 +26,7 @@ Exit 2 = отказ, stderr уходит модели. Exit 0 = пропусти
 import importlib.util
 import json
 import os
+import tempfile
 import sys
 import time
 from pathlib import Path
@@ -54,7 +55,7 @@ def _nudge_serena():
 
 
 def состояние(session_id: str) -> Path:
-    корень = Path(os.environ.get("TMPDIR") or "/tmp") / "guard-read-code"
+    корень = Path(os.environ["TMPDIR"] if os.path.isdir(os.environ.get("TMPDIR") or "") else tempfile.gettempdir()) / "guard-read-code"
     return корень / f"{session_id or 'без-сессии'}.json"
 
 

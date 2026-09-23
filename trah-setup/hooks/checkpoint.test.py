@@ -4,6 +4,7 @@ import contextlib
 import http.server
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -107,35 +108,10 @@ def nudge_stamp_path(cwd: str, session_id: str = "") -> str:
     return os.path.join(cwd, ".claude", f".compact-nudged-{suffix(session_id)}")
 
 
-class Ear:
-    """Сокет сессии на время проверки: слушает, что хук туда шлёт."""
-
-    def __init__(self, path: str):
-        self.lines: list[str] = []
-        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.sock.bind(path)
-        self.sock.listen(4)
-        threading.Thread(target=self._listen, daemon=True).start()
-
-    def _listen(self) -> None:
-        while True:
-            try:
-                conn, _ = self.sock.accept()
-            except OSError:
-                return
-            with conn:
-                conn.settimeout(2)
-                data = b""
-                try:
-                    while chunk := conn.recv(65536):
-                        data += chunk
-                except OSError:
-                    pass
-                self.lines += [s for s in data.decode("utf-8", "replace").splitlines()
-                               if s.strip()]
-
-    def close(self) -> None:
-        self.sock.close()
+# Сокет сессии на время проверки: слушает, что хук туда шлёт. Общий для
+# четырёх наборов; под Windows — именованный канал, как у настоящей сессии.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ear_for_tests import Ухо as Ear  # noqa: E402
 
 
 def write_checkpoint(cwd: str, minutes_ago: float, session_id: str = "t",
@@ -298,7 +274,7 @@ def main() -> int:
             with contextlib.suppress(OSError):
                 os.remove(nudged)
             code, _, _ = run("guard", {**base, "trigger": "manual"},
-                             extra={"CLAUDE_CODE_MESSAGING_SOCKET": sock_path})
+                             extra={"CLAUDE_CODE_MESSAGING_SOCKET": ear.адрес})
             time.sleep(0.5)
             heard = " ".join(ear.lines)
             check("отказ толкает сессию кадром в сокет",
@@ -309,7 +285,7 @@ def main() -> int:
             # снова упрётся в тот же чекпоинт. Без ограничителя это цикл.
             ear.lines.clear()
             code, _, err = run("guard", {**base, "trigger": "manual"},
-                               extra={"CLAUDE_CODE_MESSAGING_SOCKET": sock_path})
+                               extra={"CLAUDE_CODE_MESSAGING_SOCKET": ear.адрес})
             time.sleep(0.5)
             check("повторный отказ не толкает второй раз",
                   code == 2 and not ear.lines)
@@ -433,8 +409,9 @@ def main() -> int:
     дом = tempfile.mkdtemp()
     try:
         рабочее = os.path.realpath(tmp4)
+        # Кодирование как у CLI: всё, что не латиница/цифра/дефис, — в `-`.
         стенограммы = os.path.join(дом, ".claude", "projects",
-                                   рабочее.replace("/", "-"))
+                                   re.sub(r"[^A-Za-z0-9-]", "-", рабочее))
         os.makedirs(стенограммы)
         # Живы две сессии: наша и соседняя. Третьей стенограммы нет — она мертва.
         for имя in ("aaaaaaaa-1111.jsonl", "cccccccc-3333.jsonl"):
@@ -456,7 +433,7 @@ def main() -> int:
                 f.write(текст)
 
         run("mark", {"cwd": рабочее, "session_id": "aaaaaaaa-1111",
-                     "trigger": "manual"}, extra={"HOME": дом})
+                     "trigger": "manual"}, extra={"HOME": дом, "USERPROFILE": дом})
 
         архив = os.path.join(свои, "checkpoints-retired")
         уехало = sorted(os.listdir(архив)) if os.path.isdir(архив) else []
@@ -480,7 +457,7 @@ def main() -> int:
         shutil.rmtree(стенограммы)
         было = sorted(os.listdir(свои))
         run("mark", {"cwd": рабочее, "session_id": "aaaaaaaa-1111",
-                     "trigger": "manual"}, extra={"HOME": дом})
+                     "trigger": "manual"}, extra={"HOME": дом, "USERPROFILE": дом})
         check("без каталога стенограмм уборка не судит никого",
               sorted(os.listdir(свои)) == было)
     finally:

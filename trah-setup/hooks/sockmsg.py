@@ -19,6 +19,15 @@
     кусок бинарника `sys-compact-on-order`. Своим считается тот, у кого pid
     сессии среди предков; проверяет это ядро, а не кадр.
 
+WINDOWS. Канал — не unix-сокет, а именованный канал `\\\\.\\pipe\\LOCAL\\cc-msg-<id>`
+(та же переменная `CLAUDE_CODE_MESSAGING_SOCKET`), и в питоне под Windows
+`socket.AF_UNIX` нет вовсе. Первой строкой канал требует авторизацию
+`{"type":"auth","token":$CLAUDE_CODE_MESSAGING_TOKEN}` — так написано в самом
+бинаре, в подсказке `[uds-messaging] Inject messages (auth line REQUIRED here…)`.
+И «своим» там считается не родословная, а предъявленный токен ребёнка:
+`if(n===1||e.platform==="windows")return e.childTokenPresented;` (2.1.280).
+Проверено живьём 23.09.2026: кадр через канал с токеном дошёл до сессии.
+
 Три места пользуются одним этим файлом, чтобы форма строки была написана один
 раз: ошибиться в ней значит промахнуться молча — CLI просто уронит кадр.
 """
@@ -27,23 +36,48 @@ import os
 import socket
 import time
 
+WINDOWS = os.name == "nt"
+
 
 def путь_сокета() -> str:
     """Сокет этой сессии: из окружения, а если его нет — собранный по pid."""
     из_среды = os.environ.get("CLAUDE_CODE_MESSAGING_SOCKET")
     if из_среды:
         return из_среды
+    if WINDOWS:
+        # Имя канала случайное, собрать его по pid нельзя.
+        return ""
     pid = os.environ.get("CLAUDE_PID")
     корень = os.environ.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}"
     return f"{корень}/cc-socks/{pid}.sock" if pid else ""
 
 
+def есть_канал(путь: str) -> bool:
+    """Существует ли точка связи.
+
+    Именованный канал `os.path.exists` не проверяем: `stat` на канале под
+    Windows открывает его, то есть занимает экземпляр сервера ради проверки.
+    Есть ли канал, скажет сама попытка записи.
+    """
+    if not путь:
+        return False
+    return путь.startswith("\\\\.\\pipe\\") or os.path.exists(путь)
+
+
 def отправить(путь: str, кадр: dict) -> None:
     """Одна строка JSON в сокет. Ответа не ждём: обработчик отвечать не обязан."""
+    строка = json.dumps(кадр, ensure_ascii=False) + "\n"
+    if путь.startswith("\\\\.\\pipe\\"):
+        токен = os.environ.get("CLAUDE_CODE_MESSAGING_TOKEN", "")
+        данные = json.dumps({"type": "auth", "token": токен}) + "\n" + строка
+        with open(путь, "wb", buffering=0) as канал:
+            канал.write(данные.encode())
+            time.sleep(0.4)
+        return
     с = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     с.settimeout(5)
     с.connect(путь)
-    с.sendall((json.dumps(кадр, ensure_ascii=False) + "\n").encode())
+    с.sendall(строка.encode())
     # Дать обработчику дочитать строку до закрытия соединения.
     time.sleep(0.4)
     с.close()
@@ -57,7 +91,7 @@ def послать(текст: str, приоритет: str = "next", session_id
     фиксируется при запуске сессии и может разойтись. Родословная надёжнее.
     """
     путь = путь_сокета()
-    if not путь or not os.path.exists(путь):
+    if not есть_канал(путь):
         return f"сокета нет: {путь or '(не назван)'}"
     кадр: dict = {"type": "user", "message": {"content": текст}}
     if приоритет in ("now", "next", "later"):

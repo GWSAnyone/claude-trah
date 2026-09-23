@@ -11,6 +11,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 HOOK = str(Path(__file__).resolve().parent / "nudge-capability.py")
@@ -170,8 +171,11 @@ def main() -> int:
               код == 0 and сказал_про(текст, "security"), repr(текст[:80]))
 
         # Некуда писать состояние: подскажем лишний раз, но не упадём.
+        # Негодный TMPDIR хук обходит системным временным каталогом, и память
+        # о подсказке переживает прогон — поэтому сессия уникальна каждый раз.
         код, текст = run("Проверь этот обработчик на безопасность.",
-                         session="без-записи", tmp="/proc/нет-такого")
+                         session=f"без-записи-{os.getpid()}-{time.time_ns()}",
+                         tmp="/proc/нет-такого")
         check("состояние некуда писать — не падает",
               код == 0 and сказал_про(текст, "security"), repr(текст[:80]))
 

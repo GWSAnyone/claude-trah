@@ -31,6 +31,7 @@ versions/». Самая свежая — это тихий прицел: при�
 """
 import json
 import os
+import tempfile
 import re
 import shutil
 import subprocess
@@ -51,7 +52,7 @@ from pathlib import Path
 # пометкой `computed` без тела просто не попадает в бриф — ни ошибки, ни дыры в
 # тексте. Завести их — дело хозяина машины.
 ВЫЧИСЛЕННЫЕ = ДОМ / ".claude/fragments/computed"
-БЛОКНОТ = Path(os.environ.get("TMPDIR", "/tmp")) / "trah-build"
+БЛОКНОТ = Path(os.environ["TMPDIR"] if os.path.isdir(os.environ.get("TMPDIR") or "") else tempfile.gettempdir()) / "trah-build"
 # Клон tweakcc: им распаковывается и патчится бинарник.
 #
 # Путь по умолчанию — на ДИСКЕ. До 22.08.2026 здесь стоял каталог блокнота

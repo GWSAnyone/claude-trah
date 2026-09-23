@@ -34,35 +34,9 @@ def check(имя: str, условие: bool, подробность: str = "") -
         print(f"  ✗ {имя} {подробность}")
 
 
-class Ухо:
-    """Сокет вместо сессии: принимает соединения и запоминает строки."""
-
-    def __init__(self, путь: str):
-        self.путь = путь
-        self.строки: list[str] = []
-        self.сокет = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.сокет.bind(путь)
-        self.сокет.listen(4)
-        threading.Thread(target=self._слушать, daemon=True).start()
-
-    def _слушать(self) -> None:
-        while True:
-            try:
-                связь, _ = self.сокет.accept()
-            except OSError:
-                return
-            with связь:
-                связь.settimeout(2)
-                данные = b""
-                try:
-                    while кусок := связь.recv(65536):
-                        данные += кусок
-                except OSError:
-                    pass
-                self.строки += [с for с in данные.decode("utf-8", "replace").splitlines() if с.strip()]
-
-    def закрыть(self) -> None:
-        self.сокет.close()
+# Сессия-заглушка: общая для четырёх наборов; под Windows — именованный канал.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ear_for_tests import Ухо  # noqa: E402
 
 
 def модуль(окружение: dict | None = None):
@@ -301,7 +275,7 @@ def main() -> int:
         try:
             много = стенограмма(tmp, [ПОРОГ // 2, ПОРОГ // 2 + М])
             код, решение = run({"session_id": "д1", "transcript_path": много},
-                               tmp, сокет=ухо.путь)
+                               tmp, сокет=ухо.адрес)
             time.sleep(0.6)
             check("при живом сокете отказа НЕТ", решение is None, str(решение))
             check("кадр ушёл ровно один", len(ухо.строки) == 1, str(len(ухо.строки)))
@@ -434,7 +408,7 @@ def main() -> int:
             мало = с_целью(стенограмма(tmp, [1 * М], имя="застряла.jsonl"),
                            отказов=10)
             run({"session_id": "з1", "transcript_path": мало}, tmp,
-                сокет=ухо.путь)
+                сокет=ухо.адрес)
             time.sleep(0.6)
             весь = " ".join(ухо.строки)
             check("десять отказов — сессии сказали",
@@ -447,7 +421,7 @@ def main() -> int:
             # приходил бы на каждой попытке остановиться.
             ухо.строки.clear()
             run({"session_id": "з1", "transcript_path": мало}, tmp,
-                сокет=ухо.путь)
+                сокет=ухо.адрес)
             time.sleep(0.6)
             check("тот же десяток второй раз не повторяется",
                   not ухо.строки, str(ухо.строки))
@@ -456,7 +430,7 @@ def main() -> int:
                              отказов=9)
             ухо.строки.clear()
             run({"session_id": "з2", "transcript_path": девять}, tmp,
-                сокет=ухо.путь)
+                сокет=ухо.адрес)
             time.sleep(0.6)
             check("девять отказов — ещё молчим", not ухо.строки, str(ухо.строки))
         finally:

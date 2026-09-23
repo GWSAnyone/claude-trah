@@ -99,7 +99,7 @@ def main(аргументы: list[str]) -> int:
     довесок = " ".join(a for a in аргументы if not a.startswith("--")).strip()
 
     путь = sockmsg.путь_сокета()
-    if not путь or not os.path.exists(путь):
+    if not sockmsg.есть_канал(путь):
         sys.stderr.write(
             "Сокет сессии не найден: заказать сжатие некуда.\n"
             f"  CLAUDE_CODE_MESSAGING_SOCKET={os.environ.get('CLAUDE_CODE_MESSAGING_SOCKET')!r}\n"

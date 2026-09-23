@@ -35,7 +35,8 @@ def run(cwd: str, ports: str = "1", bound: str | None = None) -> dict:
 
 
 def context(cwd: str, ports: str = "1", bound: str | None = None) -> str:
-    return run(cwd, ports, bound)["hookSpecificOutput"]["additionalContext"]
+    # Хук печатает пути родными для ОС; проверки ниже пишут их через `/`.
+    return run(cwd, ports, bound)["hookSpecificOutput"]["additionalContext"].replace("\\", "/")
 
 
 def make_tree(base: str, *rel_dirs: str) -> None:

@@ -74,6 +74,14 @@ READERS = frozenset({
     "less", "more",
 })
 
+# PowerShell делает то же самое другими именами. Без них хук пропускал целую
+# оболочку: `tool_name` он принимал, а `Get-Content D:\проект\файл.go` не
+# узнавал — дисциплина обходилась не хитростью, а сменой оболочки. Регистр
+# складываем: PowerShell его не различает. Алиасов `sc`/`ac` нет намеренно:
+# `sc` — ещё и управление службами Windows. (Порт tausozavr, 23.08.2026.)
+_PS_READERS = frozenset({"get-content", "gc", "type", "select-string", "sls"})
+_PS_WRITERS = frozenset({"set-content", "add-content", "out-file"})
+
 # Подкоманды `git`, печатающие СОДЕРЖИМОЕ файла, а не сводку о нём.
 # `git diff HEAD -- файл`, `git log`, `git status` сюда не входят намеренно:
 # они печатают разницу, историю и состояние — ровно то, ради чего Bash и
@@ -131,6 +139,16 @@ _FOREIGN_PREFIXES = (
     "/dev", "/run", "/boot", "/nix", "/snap", "/lost+found",
 )
 _HOME_BASES = ("/home", "/Users", "/root")
+if os.name == "nt":
+    # Системное и временное под Windows. Дома других пользователей — `C:\Users`.
+    _FOREIGN_PREFIXES += tuple(p for p in (
+        os.environ.get("SystemRoot", r"C:\Windows"),
+        os.environ.get("ProgramFiles", r"C:\Program Files"),
+        os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"),
+        os.environ.get("ProgramData", r"C:\ProgramData"),
+        os.environ.get("TEMP", ""),
+    ) if p)
+    _HOME_BASES += (os.path.dirname(os.path.expanduser("~")),)
 
 # По-английски и коротко: это команда себе, а не объяснение владельцу.
 # Длинное вежливое напоминание читается как совет, а совет можно и не взять.
@@ -243,9 +261,17 @@ def our_roots() -> list[str]:
 
 
 def under(path: str, parent: str) -> bool:
-    """Лежит ли `path` внутри `parent` (или совпадает с ним)."""
-    parent = parent.rstrip("/")
-    return path == parent or path.startswith(parent + "/")
+    """Лежит ли `path` внутри `parent` (или совпадает с ним).
+
+    Разделителем ЭТОЙ ОС и со складыванием регистра. Проверка по одной `/`
+    под Windows не совпадала ни разу: `realpath` отдаёт `D:\\проект`, и
+    объявленные корни молча переставали быть нашими. (Порт tausozavr.)
+    """
+    path = os.path.normcase(path).rstrip(os.sep)
+    parent = os.path.normcase(parent).rstrip(os.sep)
+    if not parent:  # корень POSIX `/` после rstrip
+        return True
+    return path == parent or path.startswith(parent + os.sep)
 
 
 def foreign(path: str) -> bool:
@@ -400,6 +426,21 @@ def inline_code(command: str) -> str:
 
 
 def tokens_of(segment: str) -> list[str]:
+    """Слова сегмента.
+
+    Под Windows обратная косая — РАЗДЕЛИТЕЛЬ ПУТИ, а не экранирование: POSIX-
+    режим `shlex` делал из `D:\\проект\\файл.go` `D:проектфайл.go`, путь
+    переставал быть путём, и хук молча пропускал чтение файла проекта.
+    (Порт tausozavr, найдено пробой 23.08.2026.)
+    """
+    if os.name == "nt":
+        lexer = shlex.shlex(segment, posix=True)
+        lexer.whitespace_split = True
+        lexer.escape = ""
+        try:
+            return list(lexer)
+        except ValueError:
+            return segment.split()
     try:
         return shlex.split(segment)
     except ValueError:
@@ -569,6 +610,11 @@ def classify_segment(tokens: list[str], segment: str, raw: str, cwd: str, piped:
         return None
     flags = [a for a in args if a.startswith("-")]
     operands = [a for a in args if not a.startswith("-")]
+
+    if name.lower() in _PS_WRITERS:
+        return "write" if any(project_target(a, cwd) for a in operands) else None
+    if name.lower() in _PS_READERS:
+        return "read" if any(project_path(a, cwd) for a in operands) else None
 
     if name == "tee":
         return "write" if any(project_target(a, cwd) for a in operands) else None

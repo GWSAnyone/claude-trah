@@ -10,7 +10,7 @@ description: |
   under `docs/plans/` (optionally with the step numbers to judge), a description
   of what was done plus the paths it touched, or a git range. It reports and
   proves; it never fixes, and the caller decides what to act on.
-tools: Read, Grep, Glob, Bash, Write, Edit, WebSearch, WebFetch, mcp__serena__get_symbols_overview, mcp__serena__find_symbol, mcp__serena__find_referencing_symbols, mcp__serena__find_declaration, mcp__serena__find_implementations, mcp__serena__search_for_pattern, mcp__serena__find_file, mcp__serena__list_dir, mcp__serena__get_diagnostics_for_file, mcp__serena__get_diagnostics_for_symbol, mcp__serena__list_memories, mcp__serena__read_memory, mcp__sequential-thinking__sequentialthinking
+tools: Read, Grep, Glob, Bash, Write, Edit, WebSearch, WebFetch, mcp__serena__get_symbols_overview, mcp__serena__find_symbol, mcp__serena__find_referencing_symbols, mcp__serena__find_declaration, mcp__serena__find_implementations, mcp__serena__search_for_pattern, mcp__serena__find_file, mcp__serena__list_dir, mcp__serena__get_diagnostics_for_file, mcp__serena__list_memories, mcp__serena__read_memory
 model: inherit
 # Час, а не пять минут: к ревьюеру возвращаются через `SendMessage` — «покажи,
 # откуда следует F4», «перепроверь F7 после правки», — и разрыв между заходами

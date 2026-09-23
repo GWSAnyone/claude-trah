@@ -1,0 +1,9 @@
+# Под Windows `core.autocrlf=true` кладёт рабочие файлы с CRLF. Для этого
+# комплекта это поломка, а не косметика: разборщик куска ищет `---\n`, bash
+# читает `\r` частью команды, а бриф с CRLF едет в промпт лишними байтами.
+* text=auto eol=lf
+# Шим для cmd.exe — наоборот: cmd читает построчно по CRLF.
+*.cmd text eol=crlf
+*.png binary
+*.jpg binary
+*.node binary

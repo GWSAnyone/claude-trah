@@ -107,14 +107,39 @@ def _разбор_toml(путь: Path) -> str | None:
     return None
 
 
+def найти_программу(программа: str) -> str | None:
+    """Полный путь к программе — тот самый, что потом и запустится.
+
+    Под Windows `subprocess.run(["bash", …])` ищет по правилам CreateProcess:
+    `System32` раньше `PATH`. Там лежит `bash.exe` от WSL, и проверка
+    `shutil.which` (нашла Git Bash) и запуск (взял WSL) смотрели на РАЗНЫЕ
+    программы. Итог 23.09.2026: каждая правка `.sh` объявлялась «не
+    разбирается» с «WSL … execvpe(/bin/bash) failed» — ложная тревога на
+    каждой правке. Поэтому запускаем найденный путь, а WSL-заглушку не берём.
+    """
+    путь = shutil.which(программа)
+    if os.name != "nt" or программа != "bash":
+        return путь
+    годные = [путь] if путь else []
+    for корень in (os.environ.get("ProgramFiles"), os.environ.get("ProgramFiles(x86)")):
+        if корень:
+            годные.append(os.path.join(корень, "Git", "bin", "bash.exe"))
+    for п in годные:
+        низ = (п or "").lower()
+        if п and os.path.isfile(п) and "system32" not in низ and "windowsapps" not in низ:
+            return п
+    return None
+
+
 def _внешним(программа: str, доводы: list[str]):
     """Проверяльщик-подпроцесс. Нет программы в системе — молчание, не ошибка."""
 
     def проверить(путь: Path) -> str | None:
-        if shutil.which(программа) is None:
+        исполнимое = найти_программу(программа)
+        if исполнимое is None:
             return None
         try:
-            г = subprocess.run([программа, *доводы, str(путь)],
+            г = subprocess.run([исполнимое, *доводы, str(путь)],
                                capture_output=True, text=True, timeout=ТАЙМАУТ)
         except (subprocess.TimeoutExpired, OSError):
             return None

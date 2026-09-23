@@ -12,4 +12,4 @@
   "covered_by": []
 }
 ---
-- Russian for user-facing output (responses, comments, commit messages). English for all internal reasoning (thinking, sequential-thinking) to optimize token usage.
+- Russian for user-facing output (responses, comments, commit messages). English for all internal reasoning (thinking) to optimize token usage.
