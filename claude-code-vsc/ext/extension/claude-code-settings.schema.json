@@ -791,7 +791,7 @@
       }
     },
     "disableAllHooks": {
-      "description": "Disable all hooks and statusLine execution",
+      "description": "Disable all hooks and statusLine execution: the hooks defined in settings files and by installed plugins. Features built into Claude Code are not hooks in this sense and keep working; each has its own switch.",
       "type": "boolean"
     },
     "disableAgentView": {
@@ -865,7 +865,7 @@
       "type": "boolean"
     },
     "allowManagedHooksOnly": {
-      "description": "When true (and set in managed settings), only hooks from managed settings run. User, project, and local hooks are ignored.",
+      "description": "When true (and set in managed settings), only hooks from managed settings and from plugins that managed settings enable run. User, project, and local hooks and the hooks of plugins the user installed are ignored. Features built into Claude Code are not hooks in this sense and keep working.",
       "type": "boolean"
     },
     "allowedHttpHookUrls": {
@@ -4856,5 +4856,5 @@
   "additionalProperties": {},
   "title": "Claude Code Settings",
   "description": "Configuration settings for Claude Code. Learn more: https://code.claude.com/docs/en/settings",
-  "$comment": "Generated on 2026-09-19T01:14:52.904Z"
+  "$comment": "Generated on 2026-09-21T20:47:23.537Z"
 }
