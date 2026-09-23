@@ -160,7 +160,7 @@ with tempfile.TemporaryDirectory() as tmp:
     trah.ПИН = Path(tmp) / "version.txt"
     trah.ПИН.write_text("1.0.0\n", encoding="utf-8")
     trah.ДОЛЯ = Path(tmp)
-    ссылка = Path(tmp) / "trah" / "current"
+    ссылка = Path(tmp) / "trah" / f"current{trah.EXE}"
     ссылка.parent.mkdir()
     ссылка.symlink_to("1.0.0")
 
@@ -192,9 +192,11 @@ print("\nскрипт правок: сверка и счёт промахов")
 ЯДРО = shutil.which("node")
 
 
-def прогнать(куски_, js_: str, сверка: bool) -> tuple[int, str]:
-    тело = trah.собрать_скрипт(куски_, только_сверка=сверка)
+def прогнать(куски_, js_: str, сверка: bool, файлом: bool = False) -> tuple[int, str]:
     with tempfile.TemporaryDirectory() as tmp:
+        тело = trah.собрать_скрипт(
+            куски_, только_сверка=сверка,
+            файл_правок=Path(tmp) / "правки.json" if файлом else None)
         ф = Path(tmp) / "п.js"
         ф.write_text(
             "const тело = " + json.dumps(тело, ensure_ascii=False) + ";\n"
@@ -245,6 +247,29 @@ else:
     проверить("отчёт несёт ожидаемый и найденный счёт",
               отчёт and отчёт[0]["ждём"] == 1 and отчёт[0]["прямо"] == 1, str(отчёт))
     проверить("сверка не подставляет текст", "ZZZ" not in текст, текст[:200])
+
+    # 23.09.2026: на Windows tweakcc отдаёт скрипт командной строкой `node -e`,
+    # и 33 куска упирались в её предел — `spawn ENAMETOOLONG`. Правки файлом
+    # обязаны работать так же, а скрипт — остаться коротким при любом их объёме.
+    большие = [правка("первый", "AAA", "Z" * 50_000, 1), правка("второй", "BBB", "YYY", 1)]
+    бросило, текст = прогнать(большие, "AAA и BBB", сверка=False, файлом=True)
+    проверить("правки файлом — применяются", бросило == 0 and "Z" * 50_000 + " и YYY" in текст,
+              текст[:120])
+    with tempfile.TemporaryDirectory() as tmp:
+        тело = trah.собрать_скрипт(большие, файл_правок=Path(tmp) / "п.json")
+    проверить("правки файлом — скрипт короче предела командной строки",
+              len(тело) < 8_000, str(len(тело)))
+
+print("\nправка с platform: только на своей ОС")
+# Минификатор даёт Windows- и Linux-сборке одной версии разные имена, и у
+# `sys-compact-on-order` правок две. Чужая не должна ни применяться, ни
+# считаться промахом.
+чужая = "linux" if trah.ПЛАТФОРМА != "linux" else "windows"
+правки_ = [{"anchor": "A", "platform": trah.ПЛАТФОРМА}, {"anchor": "B", "platform": чужая},
+           {"anchor": "C"}]
+проверить("своя и общая остаются, чужая отсеяна",
+          [e["anchor"] for e in trah.свои(правки_)] == ["A", "C"],
+          str(trah.свои(правки_)))
 
 print("провалов:", провалов)
 sys.exit(1 if провалов else 0)

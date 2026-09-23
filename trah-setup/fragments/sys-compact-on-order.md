@@ -15,12 +15,21 @@
   "note_переезд_276": "Якорь переписан 18.09.2026 под 2.1.276. Текст сообщения `k` → `v`, приоритет `m` → `g`, `selfSent` `f` → `p`; uuid `w` и origin `S` остались. Видно по соседству: `let y=typeof k.content===\"string\"?k.content:s,v=y`, `let p=await le(n,r,d)`, `...p&&{selfSent:p}`. Сторож `if(!Te(e))return;` на месте, вхождение единственное",
   "note_переезд_278": "Якорь переписан 21.09.2026 под 2.1.278. Текст сообщения `v` → `f`, origin `S` → `C`, `selfSent` `p` → `S`; uuid `w` и приоритет `g` остались. Видно по соседству: `let v=typeof u.content===\"string\"?u.content:k,f=v`, `let S=await le(n,r,d)`, `...S&&{selfSent:S}`. Сторож `if(!Te(e))return;` на месте, `Te` роняет кадр с `session_id mismatch`, вхождение единственное",
   "note_переезд_280": "Якорь переписан 22.09.2026 под 2.1.280. Текст сообщения `f` → `S`, origin `C` → `b`, `selfSent` `S` → `C`; uuid `w` и приоритет `g` остались. Имена снова поменялись ролями, как на 2.1.269: `S` из selfSent стал текстом. Видно по соседству: `let p=typeof y.content===\"string\"?y.content:E,S=p`, `let C=await ce(n,r,d)`, `...C&&{selfSent:C}`. В объект origin апстрим добавил `...u!==void 0&&{plugin:u}` — якоря это не касается, он идёт по кадру очереди. Вхождение единственное",
+  "note_windows_280": "Windows-сборка 2.1.280 минифицирована иначе, чем Linux-сборка той же версии, поэтому правок две, каждая со своим `platform`. В Windows-бинаре: текст сообщения `h` (`let d=typeof y.content===\"string\"?y.content:S,h=d`), uuid `p`, приоритет `g`, origin `w`, `selfSent` `E` (`let E=await N(n,c,u)`, `...E&&{selfSent:E}`); кадр `e`, сторож объявленного id — `if(!Q(e))return;`, `Q` роняет кадр с `session_id mismatch`. Вхождение единственное. `selfSent` на Windows = `childTokenPresented` (`if(n===1||e.platform===\"windows\")return e.childTokenPresented`): родословная не проверяется, своим считается тот, кто предъявил токен из окружения сессии",
   "edits": [
     {
       "op": "replace",
+      "platform": "linux",
       "anchor": "value:S,uuid:w,priority:g,origin:b,skipSlashCommands:!0,isMeta:!0",
       "count": 1,
       "with": "value:S,uuid:w,priority:g,origin:b,skipSlashCommands:!((C===!0||typeof e.session_id===\"string\")&&typeof S===\"string\"&&(S===\"/compact\"||S.startsWith(\"/compact \"))),isMeta:!0"
+    },
+    {
+      "op": "replace",
+      "platform": "windows",
+      "anchor": "value:h,uuid:p,priority:g,origin:w,skipSlashCommands:!0,isMeta:!0",
+      "count": 1,
+      "with": "value:h,uuid:p,priority:g,origin:w,skipSlashCommands:!((E===!0||typeof e.session_id===\"string\")&&typeof h===\"string\"&&(h===\"/compact\"||h.startsWith(\"/compact \"))),isMeta:!0"
     }
   ]
 }

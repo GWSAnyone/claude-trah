@@ -66,8 +66,71 @@
 - Тесты: общее ухо `hooks/ear_for_tests.py` (unix-сокет / named pipe через ctypes) для
   4 наборов петли сжатия; прочие — нормализация путей.
 
-Следующее: install-kit Windows-ветка (не писать бриф в CLAUDE.md при живой обёртке);
-бриф под владельца (личные куски); решение по проводке хуков (заменить tausozavr-овскую).
+Коммит `3bea5e5` (ветка `windows`, без push, с разрешения владельца).
+
+**ПЕРЕКЛЮЧЕНИЕ СДЕЛАНО 23.09.2026 ~12:00.** Машина живёт на trah-комплекте:
+- `install-kit.py --replace-hooks --replace-theirs`: 58 файлов, 12 копий `*.bak-20260923-115553`
+  (brief, CLAUDE.md, senior-reviewer, 2 памяти Serena, serena-first, 4 хука, settings*).
+- Вручную (`scratchpad/post_install.py`): вернул `ops_register` (TAUSIK) на SessionStart;
+  statusLine → `cache-tap.py` → `~/.claude/statusline/claude-hud.sh` (прежняя команда hud);
+  env прежних настроек сохранён. Копия настроек до этого — `settings.json.bak-post-*`.
+- Обёртка `~/.local/claude-wrapper/claude-wrapper.sh` обновлена хуком из комплекта, подаёт бриф.
+- tausikd остановлен, `Pritonozavr.lnk` из автозагрузки → `phase2-dead-weight\`.
+- `trah-kit-path` = `D:\claude-trah\trah-setup`.
+- Проверено живьём: `nudge-compact` прислал лесенку (30M/60M) в эту же сессию по named pipe.
+- В сессию уходит ~34 КБ текста (бриф 25,1 + стиль 5,5 + заглушки + MEMORY) вместо ~41 КБ
+  + ~200 имён инструментов TAUSIK.
+
+Решения владельца по ходу: sequential-thinking — убрать (раздел и инструменты агентов убраны);
+tausikd — остановить и убрать из автозапуска; коммит ветки — да.
+
+**Не закоммичено после `3bea5e5`:** правка `trah-setup/global-CLAUDE.md` (заглушка без
+«ноутбука» и мёртвого бэкапа).
+
+## Хаб TAUSIK (23.09, после переключения)
+
+- Ветка хаба — `port/hook-coverage` (с неё раздаёт `update-libs.py`); строка
+  `release/1.8-batch-s126` в `CLAUDE.md` хаба — устаревший автоблок, не факт.
+- `/commit` приведён к брифу: без Co-Authored-By, сообщение файлом, `OWNER_OK=1 git commit -F`.
+  Коммит хаба `5b2e000`, **запушен** в `Okianiwa/tausik-core` (разрешение владельца).
+  Строка в `D:\tausik-ops\ratchet-log.md` от 2026-09-23.
+- **Починка затирания скиллов при `/fab sync --bootstrap`** (владелец: «аккуратнее, пофиксить»):
+  `bootstrap/bootstrap_copy.py::copy_skills` удалял ВСЁ вне набора → сносил проектные скиллы
+  (`web-visual`, дважды). Теперь удаляет только своё: встроенные + имена реестра + памятка
+  прошлой раскладки `skills/.tausik-deployed.json` (пишется каждым прогоном). Тест
+  `test_non_vendor_skill_cleaned_up` заменён на `test_skill_dropped_from_tausik_is_cleaned_up`
+  + новый `test_project_owned_skill_survives`; 35/35 в test_vendor. **НЕ закоммичено.**
+  Полный прогон хаба идёт фоном (`tasks/bx2ey37bu.output`); единственный увиденный провал
+  `test_audit_orphan_files::test_real_repo_check_zero_or_known` — зовёт `venv/bin/python`
+  (POSIX), к правке не относится.
+- Снимок `.claude` всех 13 проектов пишется фоном: `scratchpad/snap_projects.py snap` →
+  `D:\_backups\2026-09-23-cleanup\pre-sync\` (+manifest.json с sha256); сверка — `compare`.
+
+Следующий шаг: дождаться теста и снимка → спросить разрешение на коммит+push фикса bootstrap
+→ `python D:\tausik-ops\update-libs.py --sync --bootstrap` → `snap_projects.py compare`,
+вернуть пропавшее из снимка.
+
+## Дальше
+
+1. **Фаза 5 — собрано 23.09, не проверено вживую.** `~/.local/share/claude/trah/2.1.280.exe`
+   + symlink `current.exe`; `check` 33/33 якоря, манифест 24/24 записано, `verify` — 14
+   проверяемых доставлены, `trah.py tests` 33/33. Форк `~/.local/share/tweakcc-fixed`
+   (`059a5e2 Support CC 2.1.280`), сборка `npx pnpm@10`. Правки сборщика под Windows:
+   `EXE`-суффикс копии и ссылки; `platform` у правки (`sys-compact-on-order` — две: linux
+   `S/w/g/b/C`, windows `h/p/g/w/E`); `сумма` через hashlib; черновик сверки латиницей (LIEF
+   не открывает кириллический путь); `encoding="utf-8"` у subprocess (cp1251 терял «ОТЧЁТ»);
+   правки файлом `edits.json`/`check.json` — `node -e` упирался в 32 767 (`ENAMETOOLONG`).
+   **Осталось:** живая проверка в сессии `claude trah` — кадр `/compact` по pipe от потомка
+   сессии должен исполниться командой, а не приехать текстом. Потом петля (`compact-order`,
+   дефект 7).
+2. Хаб TAUSIK: `/commit` велит Co-Authored-By и heredoc — противоречит брифу; хаб на ветке
+   `release/1.8-batch-s126`, а прежний бриф говорил `port/hook-coverage`. Решение владельца.
+3. Остаток `~/.tausik` (держат живые MCP-серверы) — удалить после закрытия сессий.
+4. Навыки `checkpoint`/`frontend-design` из комплекта — примеры из чужой экосистемы.
+5. Известные дефекты петли: `nudge-compact` пишет ступень до отправки; текст «told at 15M»
+   при пороге 30M; `compact-order` берёт cwd процесса, guard — из payload.
+6. VS Code: `bin/claude-trah` → `claudeCode.claudeProcessWrapper`, если владелец пользуется расширением.
+7. `D:\tausozavr` — в архив (правки сохранены в `D:\_backups\2026-09-23-cleanup\`).
 
 ## Факты разведки (23.09)
 

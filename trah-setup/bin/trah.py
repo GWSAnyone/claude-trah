@@ -29,6 +29,7 @@ versions/». Самая свежая — это тихий прицел: при�
 Включение режима на один запуск, без правки обёртки:
     CLAUDE_WRAPPER_TARGET=~/.local/share/claude/trah/<версия> claude
 """
+import hashlib
 import json
 import os
 import tempfile
@@ -52,6 +53,17 @@ from pathlib import Path
 # пометкой `computed` без тела просто не попадает в бриф — ни ошибки, ни дыры в
 # тексте. Завести их — дело хозяина машины.
 ВЫЧИСЛЕННЫЕ = ДОМ / ".claude/fragments/computed"
+# Windows запускает только файл с `.exe`: копия и ссылка на неё носят его, иначе
+# не пройдёт ни дымовой запуск, ни обёртка (`trah/current.exe`, `bin/claude`).
+EXE = ".exe" if os.name == "nt" else ""
+# Минификатор называет переменные в сборках под разные ОС по-разному: якорь,
+# сошедшийся на Linux, в Windows-бинаре той же версии может не встретиться вовсе.
+# Правка с полем `platform` применяется только на своей ОС, без поля — везде.
+ПЛАТФОРМА = "windows" if os.name == "nt" else ("macos" if sys.platform == "darwin" else "linux")
+
+
+def свои(правки: list[dict]) -> list[dict]:
+    return [e for e in правки if e.get("platform", ПЛАТФОРМА) == ПЛАТФОРМА]
 БЛОКНОТ = Path(os.environ["TMPDIR"] if os.path.isdir(os.environ.get("TMPDIR") or "") else tempfile.gettempdir()) / "trah-build"
 # Клон tweakcc: им распаковывается и патчится бинарник.
 #
@@ -169,7 +181,8 @@ def прочитать_куски() -> list[dict]:
     return куски
 
 
-def собрать_скрипт(куски: list[dict], только_сверка: bool = False) -> str:
+def собрать_скрипт(куски: list[dict], только_сверка: bool = False,
+                   файл_правок: Path | None = None) -> str:
     """Скрипт правок для tweakcc adhoc-patch.
 
     Работает по РАСПАКОВАННОЙ JS-области: копии текста в области байткода bun
@@ -193,7 +206,7 @@ def собрать_скрипт(куски: list[dict], только_сверк�
     for к in куски:
         if к.get("route") != "binary":
             continue
-        for e in к.get("edits", []):
+        for e in свои(к.get("edits", [])):
             якорь = e["anchor"]
             чем = якорь + "\n" + к["тело"] if e["op"] == "insert_after" else e["with"]
             # Обратная кавычка и `${` в НАШЕМ тексте ломают сборку: часть
@@ -246,8 +259,20 @@ def собрать_скрипт(куски: list[dict], только_сверк�
     # В режиме сверки (`trah.py check`) скрипт НИЧЕГО не подставляет и всегда
     # бросает отчёт: у `adhoc-patch` stdout занят результатом, и единственный
     # канал наружу — исключение.
+    #
+    # ПРАВКИ ФАЙЛОМ, если он назван. tweakcc отдаёт скрипт node через `-e`, то
+    # есть командной строкой, а Windows режет её на 32 767 символах: 23.09.2026
+    # сверка 2.1.280 упала на `spawn ENAMETOOLONG`. Скрипт тогда короткий и
+    # читает правки сам — `process.getBuiltinModule`, а не `require`: внутри
+    # `new Function` модульного `require` нет (Node 22.3+).
+    if файл_правок is not None:
+        файл_правок.write_text(json.dumps(правки, ensure_ascii=False), encoding="utf-8")
+        правки_js = ("JSON.parse(process.getBuiltinModule('fs').readFileSync("
+                     + json.dumps(str(файл_правок)) + ", 'utf8'))")
+    else:
+        правки_js = json.dumps(правки, ensure_ascii=False)
     return (
-        "const EDITS = " + json.dumps(правки, ensure_ascii=False) + ";\n"
+        "const EDITS = " + правки_js + ";\n"
         "const СВЕРКА = " + ("true" if только_сверка else "false") + ";\n"
         "const счёт = (s, a) => s.split(a).length - 1;\n"
         "let out = js;\n"
@@ -309,7 +334,7 @@ def записан_ли(копия: Path, кусок: dict) -> bool:
     if кусок.get("route") != "binary":
         return False
     данные = копия.read_bytes()
-    for e in кусок.get("edits", []):
+    for e in свои(кусок.get("edits", [])):
         нагрузка = кусок["тело"] if e["op"] == "insert_after" else e["with"]
         проба_ = нагрузка.strip().split("\n")[0][:60]
         if not проба_:
@@ -346,16 +371,19 @@ def пути(версия: str | None) -> tuple[str, Path, Path, Path, Path]:
     return (
         версия,
         ДОЛЯ / "versions" / версия,
-        ДОЛЯ / "trah" / версия,
+        ДОЛЯ / "trah" / f"{версия}{EXE}",
         ДОЛЯ / "trah" / f"{версия}.origin.sha256",
         ДОЛЯ / "trah" / f"{версия}.manifest.json",
     )
 
 
 def сумма(путь: Path) -> str:
-    return subprocess.run(
-        ["sha256sum", str(путь)], capture_output=True, text=True, check=True
-    ).stdout.split()[0]
+    # hashlib, а не `sha256sum`: на Windows его нет в PATH процесса Python.
+    h = hashlib.sha256()
+    with путь.open("rb") as f:
+        for блок in iter(lambda: f.read(1 << 20), b""):
+            h.update(блок)
+    return h.hexdigest()
 
 
 def build(версия: str | None) -> int:
@@ -417,7 +445,8 @@ def build(версия: str | None) -> int:
     # стёр бы их. Песочница скрипта не работает на Node 26 — tweakcc знает
     # флаги Node 20–24, а там они снова переименованы; скрипт свой.
     скрипт = БЛОКНОТ / "edits.js"
-    скрипт.write_text(собрать_скрипт(куски), encoding="utf-8")
+    скрипт.write_text(собрать_скрипт(куски, файл_правок=БЛОКНОТ / "edits.json"),
+                      encoding="utf-8")
     выполнить(
         ["node", str(TWEAKCC / "dist/index.mjs"), "adhoc-patch",
          "--script", f"@{скрипт}", "-p", str(копия),
@@ -454,7 +483,8 @@ def build(версия: str | None) -> int:
     # двойных кавычках рвёт его гарантированно), и тогда бинарник не стартует
     # вовсе. Раньше сборка этого не замечала и рапортовала успех поверх
     # `SyntaxError: Unexpected EOF`.
-    р = subprocess.run([str(копия), "--version"], capture_output=True, text=True)
+    р = subprocess.run([str(копия), "--version"], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
     if р.returncode != 0 or "Claude Code" not in р.stdout:
         print("СОБРАННАЯ КОПИЯ НЕ ЗАПУСКАЕТСЯ — сборка не удалась.", file=sys.stderr)
         sys.stderr.write(р.stdout + р.stderr)
@@ -472,7 +502,7 @@ def build(версия: str | None) -> int:
     # обёртка (`bin/claude`, ветка слова `trah`) и всё, что зовёт режим из
     # настроек, а не руками: путь с номером версии протух бы на первом же
     # обновлении Claude Code, а этот — нет.
-    ссылка = копия.parent / "current"
+    ссылка = копия.parent / f"current{EXE}"
     ссылка.unlink(missing_ok=True)
     ссылка.symlink_to(копия.name)
 
@@ -485,7 +515,9 @@ def build(версия: str | None) -> int:
 
 def выполнить(команда: list[str], окружение: dict | None = None) -> None:
     среда = {**os.environ, **(окружение or {})}
-    р = subprocess.run(команда, env=среда, capture_output=True, text=True)
+    # Кодировка явно: под Windows `text=True` читает вывод node как cp1251.
+    р = subprocess.run(команда, env=среда, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
     if р.returncode != 0:
         sys.stdout.write(р.stdout)
         sys.stderr.write(р.stderr)
@@ -520,19 +552,22 @@ def check(версия: str | None) -> int:
     # не открывается на запись НИКОГДА. Скрипт сверки всё равно бросает
     # исключение, так что записи не случится и в неё, — но полагаться на это
     # значит ставить главное правило в зависимость от чужого кода.
-    черновик = БЛОКНОТ / f"сверка-{версия}"
+    # Имя латиницей: tweakcc (LIEF) под Windows не открывает путь с кириллицей —
+    # «Failed to parse binary file».
+    черновик = БЛОКНОТ / f"check-{версия}{EXE}"
     черновик.unlink(missing_ok=True)
     shutil.copyfile(оригинал, черновик)
     черновик.chmod(0o755)
 
     скрипт = БЛОКНОТ / "check.js"
-    скрипт.write_text(собрать_скрипт(прочитать_куски(), только_сверка=True),
+    скрипт.write_text(собрать_скрипт(прочитать_куски(), только_сверка=True,
+                                     файл_правок=БЛОКНОТ / "check.json"),
                       encoding="utf-8")
     р = subprocess.run(
         ["node", str(TWEAKCC / "dist/index.mjs"), "adhoc-patch",
          "--script", f"@{скрипт}", "-p", str(черновик),
          "--confirm-possible-dangerous-patch", "--dangerous-no-script-sandbox"],
-        capture_output=True, text=True,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
     черновик.unlink(missing_ok=True)
 
@@ -618,7 +653,7 @@ def upgrade(версия: str | None) -> int:
     # доставки. 14.09.2026 переезд на 2.1.270 сорвался на доставке, прицел
     # остался прежним, а ссылка — на недоставленной сборке: обёртка поднимала
     # на ней новые сессии. Сорвался шаг после сборки — ссылка возвращается.
-    ссылка = ДОЛЯ / "trah" / "current"
+    ссылка = ДОЛЯ / "trah" / f"current{EXE}"
     была = os.readlink(ссылка) if ссылка.is_symlink() else None
 
     def откатить() -> int:
