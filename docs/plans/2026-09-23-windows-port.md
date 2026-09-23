@@ -193,6 +193,10 @@ tausik-ops: `evals/portfolio.py` — `_backups` исключён из поиск
    сессии»). Разложено в `~/.claude/hooks`, прежние копии — `D:\_backups\2026-09-23-cleanup\hooks-before-defect7`.
 8. `project-template/.claude/*` не в git (`.gitignore: .claude/`).
 9. `covered_by` у `trah-delegation` недостижим; `dev/check-brief-delivery.py` падает на импорте.
+   23.09: к trah не относится — `dev/check-brief-delivery.py` был в tausozavr, в комплекте его нет.
+   Хвост 23.09: 14 файлов с разницей только в переводах строк нормализованы (`git add`);
+   неподключённый `guard-session-launch.py` и запись `D:\tausozavr` в конфиге Serena убраны
+   (копии — `D:\_backups\2026-09-23-cleanup\tail-cleanup`).
 10. POSIX-предположения: `sha256sum`, symlink `current`, `/tmp`, `lib/python*/site-packages`,
     `read_text()` без encoding, bash-обёртка, `stat -c`, `md5sum`, `sort -V`.
 
