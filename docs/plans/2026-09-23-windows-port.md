@@ -140,14 +140,25 @@ tausikd — остановить и убрать из автозапуска; к
    `compact_boundary` (`trigger: manual`, 194 567 → 11 159 токенов), затем
    `compact-continue` вернул работу сам. Петля заказного сжатия на Windows работает.
    Дефект 7 починен тем же днём (см. «Дефекты trah»).
-2. Хаб TAUSIK: `/commit` велит Co-Authored-By и heredoc — противоречит брифу; хаб на ветке
-   `release/1.8-batch-s126`, а прежний бриф говорил `port/hook-coverage`. Решение владельца.
-3. Остаток `~/.tausik` (держат живые MCP-серверы) — удалить после закрытия сессий.
-4. Навыки `checkpoint`/`frontend-design` из комплекта — примеры из чужой экосистемы.
-5. Известные дефекты петли: `nudge-compact` пишет ступень до отправки; текст «told at 15M»
-   при пороге 30M; `compact-order` берёт cwd процесса, guard — из payload.
-6. VS Code: `bin/claude-trah` → `claudeCode.claudeProcessWrapper`, если владелец пользуется расширением.
-7. `D:\tausozavr` — в архив (правки сохранены в `D:\_backups\2026-09-23-cleanup\`).
+2. ~~Хаб TAUSIK `/commit`~~ — сделано раньше (`5b2e000`, см. «Хаб TAUSIK»).
+3. Остаток `~/.tausik` (91 МБ: db, venv) держат три MCP-сервера TAUSIK сессии `claude.exe`
+   PID 2024 (обычная, не trah, запущена 12:07 из дома). Новые сессии их не поднимают:
+   у дома в `~/.claude.json` серверов нет, `~/.mcp.json` нет. Перенести в бэкап после
+   закрытия той сессии.
+4. ~~Навыки из чужой экосистемы~~ — 23.09: в `checkpoint` примеры обезличены
+   (`<host>`, `my-project`); в `frontend-design` ссылка на `SyncedProjects/.../frontend.md`
+   заменена на правило проекта, таблица «References» (DmTrading, BuyOrderBot, CSGOMarketParser,
+   BuffTrah, GWS_Ltd — ни одного на этой машине) убрана. Разложено в `~/.claude/skills`.
+5. ~~Дефекты петли~~ — 23.09: `nudge-compact` не засчитывает ступень, если кадр не ушёл на
+   `PostToolBatch` (повтор на `Stop`, проверка в `nudge-compact.test.py`); «told at» берёт
+   `ПЕРВАЯ`. cwd — дефект 7.
+6. VS Code — не нужен (владелец расширением не пользуется).
+7. ~~`D:\tausozavr` в архив~~ — 23.09 перенесён целиком (с `.git`, 2 незапушенными коммитами
+   и незакоммиченным) в `D:\_backups\2026-09-23-cleanup\tausozavr-archived`. Процессов из
+   него не было, ссылок из `~/.claude` и обёртки нет.
+
+tausik-ops: `evals/portfolio.py` — `_backups` исключён из поиска проектов вне реестра
+(бэкап дома с `.tausik/` красил `REGISTRY-COMPLETE`); evals 12 ok, 0 несовпадений.
 
 ## Факты разведки (23.09)
 

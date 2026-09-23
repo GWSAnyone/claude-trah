@@ -24,7 +24,7 @@ cannot be understood wrong.
 
 | Layer | Where it lives | What is in it |
 |---|---|---|
-| Mechanics | `SyncedProjects/.claude/rules/frontend.md` | tokens, button classes, file layout, JS conventions. Loads itself when working with `web/` |
+| Mechanics | the project's `.claude/rules/frontend.md`, if it has one | tokens, button classes, file layout, JS conventions |
 | **Judgement** | **this skill** | what to show, what to sacrifice, what to call it, where to put friction |
 | Current defects | `docs/plans/*-frontend-refactor.md` | what exactly is broken right now and in what order it gets fixed |
 
@@ -32,8 +32,8 @@ The split is what keeps the skill alive. Today's list of defects goes stale as
 they are fixed; the rules do not. Found a defect — its place is in the plan, and
 only the lesson that follows from it lands here.
 
-The skill is global and gets invoked in any ecosystem. Outside GWS there is no
-mechanics rule — then the first thing to do is start a token dictionary and hold
+The skill is global and gets invoked in any project. Where there is no
+mechanics rule, the first thing to do is start a token dictionary and hold
 to it just as strictly: everything below rests on the palette and the fonts
 having been settled in advance and not being reopened on every page.
 
@@ -358,33 +358,11 @@ And **express it in multiples of the base, not only in money**: `×1.4` answers
 ## Process
 
 1. Formulate the page's job (step 0).
-2. Look at how a neighbouring bot solved something similar — references below.
+2. Look at how a neighbouring page of the same project solved something similar.
 3. Sketch the architecture **in text or ASCII**: what follows what and why.
    Cheap to throw away, expensive to lay out again.
 4. Build it out of the existing bricks.
 5. Go through the checklist. A divergence gets fixed before showing the owner.
-
-## References: where to look at a working example
-
-| Technique | Where |
-|---|---|
-| The unit in the formatter's name | `DmTrading/web/v2/js/lib/fmt.js` |
-| Filtering with honest counters, filter memory | `DmTrading/web/v2/js/lib/filter.js` |
-| State badges with priority and explanation | `DmTrading/web/v2/js/lib/status.js` |
-| An edit marker that fades once the bot has seen it | `DmTrading/web/v2/js/lib/modified.js` |
-| Confirmation with a list and the total commitment | `BuyOrderBot/web/v2/js/orders.js` |
-| Dry run on its own button, `before → applied` | `BuyOrderBot/web/v2/js/analytics.js` |
-| Preview of a run's cost before the click | `CSFParser/web/v2/js/settings.js` |
-| Three outcomes, the lock from the server log, `Check` | `CSGOMarketParser/web/accounts.html` |
-| Progress per account instead of a spinner | `CSGOMarketParser/web/js/relist/` |
-| Liveness as "last event + age" | `CSGOMarketParser/web/js/relist/auto-relist.js` |
-| A staleness threshold with colour dimming | `CSGOMarketParser/web/accounts.html` |
-| Three locks named in the interface; a plan's TTL | `BuffTrah/web/index.html`, `app.js` |
-| `null` ≠ `0` in money; chips for filter-out reasons | `BuffTrah/web/app.js` |
-| A funnel and a strict subset under the total | `GWS_Ltd/web/analytics.js` |
-| A data-freshness panel broken down by source | `GWS_Ltd/web/analytics.html` |
-
-Line numbers are left out on purpose: they drift. Search by the technique's name.
 
 ## Checklist before handing over
 

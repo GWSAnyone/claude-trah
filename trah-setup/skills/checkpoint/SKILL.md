@@ -90,7 +90,7 @@ The hook owns the name. Ask it, then write there:
 
 ```bash
 python3 ~/.claude/hooks/checkpoint.py path
-# → /path/to/repo/.claude/.checkpoint-gwsdesktop-556a4872
+# → /path/to/repo/.claude/.checkpoint-<host>-556a4872
 ```
 
 ⚠ **Do not build the name yourself.** The suffix is `<hostname>-<8 chars of
@@ -112,7 +112,7 @@ environment. Say so instead of falling back to a shared name.
 ```json
 {
   "plan": "docs/plans/2026-08-11-scan-pool.md",
-  "project": "SyncedProjects",
+  "project": "my-project",
   "next": "<the same sentence as «Следующее действие»>"
 }
 ```

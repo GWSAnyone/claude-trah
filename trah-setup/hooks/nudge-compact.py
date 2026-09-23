@@ -363,7 +363,8 @@ def сообщение(всего: int, ступень_: int, цель: dict | N
 
     return (шапка +
             "This is the second rung and it is no longer a suggestion. You "
-            "were told at 15M and the session has kept growing since. Compact "
+            f"were told at {ПЕРВАЯ // МИЛЛИОН}M and the session has kept "
+            "growing since. Compact "
             "in THIS turn:\n" + шаги +
             "Only one thing outranks this: an edit already begun that would "
             "break the tree if left half-done. Finish exactly that, then "
@@ -435,14 +436,20 @@ def main() -> int:
         записать_состояние(файл, сост)
         return 0
 
-    сост["ступень"] = текущая
-    записать_состояние(файл, сост)
-
     текст = сообщение(всего, текущая, цель)
     беда = sockmsg.послать(текст)
-    if беда and полезное.get("hook_event_name") != "PostToolBatch":
+    if беда and полезное.get("hook_event_name") == "PostToolBatch":
         # Запасной путь есть только у `Stop`: `PostToolBatch` решений не
-        # принимает, и напечатанное там никуда не поедет.
+        # принимает, и напечатанное там никуда не поедет. Ступень поэтому не
+        # засчитываем — иначе недоставленное напоминание пропало бы молча, и
+        # следующее пришло бы только ступенью выше.
+        сост["ступень"] = запомнено
+        записать_состояние(файл, сост)
+        return 0
+
+    сост["ступень"] = текущая
+    записать_состояние(файл, сост)
+    if беда:
         json.dump({"decision": "block", "reason": текст}, sys.stdout)
     return 0
 
