@@ -14,12 +14,13 @@
   "note_переезд_273": "Якорь переписан 16.09.2026 под 2.1.273. Сдвинулось ТРИ имени: текст сообщения `v` → `k`, uuid `y` → `w`, origin `w` → `S`. Приоритет `m` и `selfSent` `f` остались. Кадр по-прежнему `e`: `let y=typeof E.content===\"string\"?E.content:s,k=y` (с префиксом вложений `k=R(y,O.prefix)`), `let f=await le(n,r,d)`, `...f&&{selfSent:f}`. Сторож объявленного id жив: `if(!Te(e))return;` в начале обработчика, `Te` роняет кадр с `session_id mismatch`. Вхождение единственное",
   "note_переезд_276": "Якорь переписан 18.09.2026 под 2.1.276. Текст сообщения `k` → `v`, приоритет `m` → `g`, `selfSent` `f` → `p`; uuid `w` и origin `S` остались. Видно по соседству: `let y=typeof k.content===\"string\"?k.content:s,v=y`, `let p=await le(n,r,d)`, `...p&&{selfSent:p}`. Сторож `if(!Te(e))return;` на месте, вхождение единственное",
   "note_переезд_278": "Якорь переписан 21.09.2026 под 2.1.278. Текст сообщения `v` → `f`, origin `S` → `C`, `selfSent` `p` → `S`; uuid `w` и приоритет `g` остались. Видно по соседству: `let v=typeof u.content===\"string\"?u.content:k,f=v`, `let S=await le(n,r,d)`, `...S&&{selfSent:S}`. Сторож `if(!Te(e))return;` на месте, `Te` роняет кадр с `session_id mismatch`, вхождение единственное",
+  "note_переезд_280": "Якорь переписан 22.09.2026 под 2.1.280. Текст сообщения `f` → `S`, origin `C` → `b`, `selfSent` `S` → `C`; uuid `w` и приоритет `g` остались. Имена снова поменялись ролями, как на 2.1.269: `S` из selfSent стал текстом. Видно по соседству: `let p=typeof y.content===\"string\"?y.content:E,S=p`, `let C=await ce(n,r,d)`, `...C&&{selfSent:C}`. В объект origin апстрим добавил `...u!==void 0&&{plugin:u}` — якоря это не касается, он идёт по кадру очереди. Вхождение единственное",
   "edits": [
     {
       "op": "replace",
-      "anchor": "value:f,uuid:w,priority:g,origin:C,skipSlashCommands:!0,isMeta:!0",
+      "anchor": "value:S,uuid:w,priority:g,origin:b,skipSlashCommands:!0,isMeta:!0",
       "count": 1,
-      "with": "value:f,uuid:w,priority:g,origin:C,skipSlashCommands:!((S===!0||typeof e.session_id===\"string\")&&typeof f===\"string\"&&(f===\"/compact\"||f.startsWith(\"/compact \"))),isMeta:!0"
+      "with": "value:S,uuid:w,priority:g,origin:b,skipSlashCommands:!((C===!0||typeof e.session_id===\"string\")&&typeof S===\"string\"&&(S===\"/compact\"||S.startsWith(\"/compact \"))),isMeta:!0"
     }
   ]
 }
