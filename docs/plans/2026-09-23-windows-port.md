@@ -143,8 +143,8 @@ tausikd — остановить и убрать из автозапуска; к
 2. ~~Хаб TAUSIK `/commit`~~ — сделано раньше (`5b2e000`, см. «Хаб TAUSIK»).
 3. Остаток `~/.tausik` (91 МБ: db, venv) держат три MCP-сервера TAUSIK сессии `claude.exe`
    PID 2024 (обычная, не trah, запущена 12:07 из дома). Новые сессии их не поднимают:
-   у дома в `~/.claude.json` серверов нет, `~/.mcp.json` нет. Перенести в бэкап после
-   закрытия той сессии.
+   у дома в `~/.claude.json` серверов нет, `~/.mcp.json` нет. 23.09: сессия закрылась,
+   `~/.tausik` перенесён в `D:\_backups\2026-09-23-cleanup\home-tausik-remainder`.
 4. ~~Навыки из чужой экосистемы~~ — 23.09: в `checkpoint` примеры обезличены
    (`<host>`, `my-project`); в `frontend-design` ссылка на `SyncedProjects/.../frontend.md`
    заменена на правило проекта, таблица «References» (DmTrading, BuyOrderBot, CSGOMarketParser,
