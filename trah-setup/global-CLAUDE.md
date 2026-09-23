@@ -1,11 +1,12 @@
 # Global rules — in the system prompt
 
-Who you are, commit discipline and destructive git commands, output language, the
-desktop and laptop environments, Serena and sequential-thinking discipline — all
-of it is fed to the session by the **system prompt**. The source it is assembled
-from: `~/.claude/brief.md`.
+Who you are, commit discipline and destructive git commands, output language, this
+machine's traps, Serena discipline — all of it is fed to the session by the
+**system prompt**, through the wrapper (`claude` → `~/.local/claude-wrapper/claude.cmd`
+on Windows, `~/.local/bin/claude` elsewhere). The source it is assembled from:
+`~/.claude/brief.md`, built from `trah-setup/fragments/` of the kit named in
+`~/.claude/trah-kit-path`.
 
 **If you are reading this and the rules are not in context — open
-`~/.claude/brief.md` first thing, before any work.**
-
-A backup of the previous file lies next to it: `~/.claude/CLAUDE.md.bak-20260820`.
+`~/.claude/brief.md` first thing, before any work.** That means the wrapper did
+not fire, and then EVERY rule is missing, not just some.
