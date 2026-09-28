@@ -160,6 +160,9 @@ def main() -> int:
         ("Grep", False),
         ("Read", False),
         ("mcp__other__search_for_pattern", False),
+        ("mcp__serena-mis__search_for_pattern", True),
+        ("mcp__serena-mis__find_symbol", False),
+        ("mcp__serenade__search_for_pattern", False),
     ]
     for имя, ждём in случаи:
         check(f"разбор имени: {имя} → {'придержать' if ждём else 'пропустить'}",

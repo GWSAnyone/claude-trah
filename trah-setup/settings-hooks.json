@@ -127,7 +127,7 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit|MultiEdit|NotebookEdit|mcp__serena__(replace|insert).*",
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|mcp__serena(-[A-Za-z0-9-]+)?__(replace|insert).*",
         "hooks": [
           {
             "type": "command",

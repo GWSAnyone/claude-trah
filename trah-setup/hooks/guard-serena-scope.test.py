@@ -39,7 +39,13 @@ CASES = [
     ("mcp__serena__read_memory", {"memory_file_name": "bots/dmarket"}, PASS),
     ("mcp__serena__activate_project", {"project": "SyncedProjects"}, PASS),
 
+    # --- второй сервер serena-<имя> гардится так же ---
+    ("mcp__serena-mis__find_symbol", {"name_path_pattern": "runScan"}, BLOCK),
+    ("mcp__serena-mis__search_for_pattern",
+     {"substring_pattern": "X", "relative_path": "app"}, PASS),
+
     # --- не Serena вообще ---
+    ("mcp__serenade__find_symbol", {"name_path_pattern": "runScan"}, PASS),
     ("Grep", {"pattern": "foo"}, PASS),
     ("Bash", {"command": "ls"}, PASS),
 ]
@@ -61,7 +67,7 @@ def main() -> int:
         got = run(tool, args)
         ok = got == want
         failed += not ok
-        short = tool.replace("mcp__serena__", "")
+        short = tool.replace("mcp__serena__", "").replace("mcp__", "")
         keys = ", ".join(f"{k}={v!r}" for k, v in args.items() if "path" in k or "glob" in k) or "—"
         print(f"{'✓' if ok else '✗'} {'БЛОК' if got else 'ok  '}  {short:<26} {keys[:52]}")
     print(f"\nвсего: {len(CASES)}   провалов: {failed}")

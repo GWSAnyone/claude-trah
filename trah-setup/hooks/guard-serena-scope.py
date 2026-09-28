@@ -54,7 +54,8 @@ def main() -> int:
         return 0
 
     tool_name = payload.get("tool_name", "")
-    match = re.match(r"^mcp__serena__(.+)$", tool_name)
+    # serena-<имя> — второй сервер той же сессии, привязанный к соседнему дереву
+    match = re.match(r"^mcp__serena(?:-[A-Za-z0-9-]+)?__(.+)$", tool_name)
     if not match:
         return 0
 

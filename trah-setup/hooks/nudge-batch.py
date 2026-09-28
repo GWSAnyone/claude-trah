@@ -23,6 +23,7 @@
 import importlib.util
 import json
 import os
+import re
 import tempfile
 import sys
 from collections import Counter
@@ -61,6 +62,7 @@ import sockmsg
 
 
 def подсказка(имена: list[str]) -> str:
+    имена = [re.sub(r"^mcp__serena-[A-Za-z0-9-]+__", "mcp__serena__", и) for и in имена]
     виды = Counter("Bash" if и == "Bash" else "чтение" if и in ЧТЕНИЕ
                    else "правка" if и in ПРАВКА else "прочее" for и in имена)
     if not виды:

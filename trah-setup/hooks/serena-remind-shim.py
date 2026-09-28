@@ -54,6 +54,7 @@ Serena. Одновременно тот же вызов не засчитыва�
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -63,7 +64,8 @@ import sys
 # чтобы при обновлении Serena было видно, что именно сверять.
 _MISCOUNTED = ("search_for_pattern", "read_file")
 
-_PREFIX = "mcp__serena__"
+# serena-<имя> — второй сервер сессии, привязанный к соседнему дереву
+_PREFIX = re.compile(r"^mcp__serena(?:-[a-z0-9-]+)?__")
 _UPSTREAM = ("serena-hooks", "remind", "--client=claude-code")
 _TIMEOUT = 12
 
@@ -85,7 +87,7 @@ _READ_SHELL = frozenset(
 def miscounted(tool_name: str) -> bool:
     """Посчитал бы апстрим этот вызов Serena грепом или чтением."""
     name = tool_name.lower().strip()
-    if not name.startswith(_PREFIX):
+    if not _PREFIX.match(name):
         return False
     return any(substring in name for substring in _MISCOUNTED)
 
