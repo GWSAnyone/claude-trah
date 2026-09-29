@@ -87,7 +87,7 @@ def main() -> int:
     cp = чекпоинт_модуль()
     if cp is None:
         return 0
-    метка = Path(cwd) / ".claude" / f".compact-ordered-{cp.suffix_for(session_id)}"
+    метка = Path(cp.compact_order_path(cwd, session_id))
     try:
         возраст = time.time() - метка.stat().st_mtime
     except OSError:

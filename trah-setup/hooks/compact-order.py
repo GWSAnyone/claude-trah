@@ -80,10 +80,6 @@ def чекпоинт_модуль():
 
 
 
-def метка_повтора(cp, cwd: str, session_id: str) -> Path:
-    return Path(cwd) / ".claude" / f".compact-ordered-{cp.suffix_for(session_id)}"
-
-
 def недавно(файл: Path) -> float | None:
     """Сколько секунд назад заказывали в прошлый раз, или None."""
     try:
@@ -134,7 +130,7 @@ def main(аргументы: list[str]) -> int:
             "сюда снова.\n")
         return 1
 
-    метка = метка_повтора(cp, cwd, session_id)
+    метка = Path(cp.compact_order_path(cwd, session_id))
     прошло = недавно(метка)
     if прошло is not None and прошло < ПОВТОР_СЕК and not снова:
         sys.stderr.write(

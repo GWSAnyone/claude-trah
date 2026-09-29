@@ -372,6 +372,16 @@ def nudge_stamp_path(cwd: str, session_id: str = "") -> str:
     return os.path.join(cwd, ".claude", f".compact-nudged-{suffix_for(session_id)}")
 
 
+def compact_order_path(cwd: str, session_id: str = "") -> str:
+    """Метка сжатия, которое сессия заказала себе сама (`compact-order.py`).
+
+    Её читают трое: `compact-order` — от двойного заказа, `compact-continue` —
+    чтобы разбудить сессию после сжатия и съесть метку, `nudge-wait` — чтобы не
+    требовать будильника, когда будить уже есть кому.
+    """
+    return os.path.join(cwd, ".claude", f".compact-ordered-{suffix_for(session_id)}")
+
+
 def nudge(cwd: str, session_id: str, reason: str) -> str:
     """Толкнуть сессию репликой после отказа в сжатии.
 

@@ -188,7 +188,9 @@ senior-reviewer, test-writer (копии `*.bak-20260929-151409`).
 `origin.selfSent:true`, следом `<command-name>/compact`, 12:19:15Z `compact_boundary`,
 затем письмо `compact-continue`. Правка `sys-compact-on-order` под Windows работает.
 Ложное срабатывание `nudge-wait`: он требовал способа пробуждения, хотя уже заказанное
-сжатие само будит сессию через `compact-continue`. Сторож об этом не знает — не починено.
+сжатие само будит сессию через `compact-continue`. Починено 29.09: `nudge-wait` молчит,
+если метка заказа (`checkpoint.compact_order_path`, общая теперь для трёх хуков) моложе
+15 минут. Старше — заказ отбит сторожем чекпоинта, будить некому, отказ остаётся.
 
 ## Факты разведки (23.09)
 

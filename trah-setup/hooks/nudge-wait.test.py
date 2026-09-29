@@ -8,7 +8,10 @@
 import importlib.util
 import io
 import json
+import os
 import sys
+import tempfile
+import time
 from pathlib import Path
 
 всего = 0
@@ -65,6 +68,23 @@ check("пустые списки не спасают",
       хук.решение({"last_assistant_message": обещание, "background_tasks": [],
                    "session_crons": []}) is not None)
 check("текста нет — молчит", хук.решение({}) is None)
+
+спец_cp = importlib.util.spec_from_file_location("checkpoint_hook", str(путь.parent / "checkpoint.py"))
+CP = importlib.util.module_from_spec(спец_cp)
+спец_cp.loader.exec_module(CP)
+with tempfile.TemporaryDirectory() as каталог:
+    сессия = "87b3fb09-7ae3-4107-ac55-1e34157058e4"
+    заказ = {"last_assistant_message": обещание, "cwd": каталог, "session_id": сессия}
+    check("метки заказа нет — отказ", хук.решение(заказ) is not None)
+    метка = Path(CP.compact_order_path(каталог, сессия))
+    метка.parent.mkdir()
+    метка.write_text("2026-09-29T15:18:36\n", encoding="utf-8")
+    check("сжатие заказано — молчит", хук.решение(заказ) is None)
+    check("метка чужой сессии не спасает",
+          хук.решение({**заказ, "session_id": "e0063367-dd45"}) is not None)
+    давно = time.time() - хук.СЖАТИЕ_СЕК - 60
+    os.utime(метка, (давно, давно))
+    check("протухшая метка не спасает", хук.решение(заказ) is not None)
 
 
 def прогнать(сырьё: str) -> tuple[int, str]:

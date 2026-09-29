@@ -17,12 +17,20 @@ Stop приносит `last_assistant_message`, `background_tasks` и `session_c
 считается, и ход, кончившийся вопросом, тоже: там ход честно отдан человеку.
 Нашли — отказ в остановке с указанием, что делать. Второй раз за ход хук не
 срабатывает (`stop_hook_active`), так что цена ложного срабатывания — один ход.
+
+Третий будильник — сжатие, которое сессия заказала себе сама: оно сработает в
+конце хода, а `compact-continue` вернёт её к делу. 29.09.2026 хук отказал в
+остановке ходу, который именно так и кончался: сжатие заказано, «разбудит оно».
+Метку заказа кладёт `compact-order.py`, съедает `compact-continue.py`.
 """
 
+import importlib.util
 import json
 import os
 import re
 import sys
+import time
+from pathlib import Path
 
 ОБЕЩАНИЕ = re.compile(
     r"\b(?:жду|ждём|ждем|дождусь|дожидаюсь|подожду)\s+(?:"
@@ -49,6 +57,26 @@ import sys
 ЦИТАТА = re.compile(r"«[^»]*»|“[^”]*”|\"[^\"\n]*\"|`[^`\n]*`")
 
 
+# Заказ сжатия исполняется в конце того же хода, так что метка, которую застаёт
+# Stop, моложе самого хода. Старше — след заказа, который сжатием не кончился
+# (его отбил сторож чекпоинта), и будить сессию он уже не станет.
+СЖАТИЕ_СЕК = 15 * 60
+
+
+def сжатие_заказано(payload: dict) -> bool:
+    cwd, session_id = payload.get("cwd"), payload.get("session_id", "")
+    путь = Path(__file__).resolve().parent / "checkpoint.py"
+    if not cwd or not путь.exists():
+        return False
+    спец = importlib.util.spec_from_file_location("checkpoint_hook", путь)
+    cp = importlib.util.module_from_spec(спец)
+    спец.loader.exec_module(cp)
+    try:
+        return time.time() - os.stat(cp.compact_order_path(cwd, session_id)).st_mtime < СЖАТИЕ_СЕК
+    except OSError:
+        return False
+
+
 def обещание(текст: str) -> bool:
     строки = [с.strip() for с in текст.strip().splitlines() if с.strip()]
     if not строки or строки[-1].endswith("?"):
@@ -64,6 +92,8 @@ def решение(payload: dict) -> str | None:
         return None
     текст = payload.get("last_assistant_message")
     if not isinstance(текст, str) or not обещание(текст):
+        return None
+    if сжатие_заказано(payload):
         return None
     return ПРИЧИНА
 
