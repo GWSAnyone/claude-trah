@@ -15,9 +15,9 @@
   "edits": [
     {
       "op": "replace",
-      "anchor": "if(he.data.type===\"text\"&&he.data.file.truncatedByTokenCap===!0)return await B();",
+      "anchor": "if(ve.data.type===\"text\"&&ve.data.file.truncatedByTokenCap===!0)return await K();",
       "count": 1,
-      "with": "if((g===\"compact\"&&!(e.endsWith(\"CLAUDE.md\")||e.endsWith(\"AGENTS.md\")||e.includes(\"/rules/\")||e.includes(\".checkpoint\")))||(he.data.type===\"text\"&&he.data.file.truncatedByTokenCap===!0))return await B();"
+      "with": "if((g===\"compact\"&&!(e.endsWith(\"CLAUDE.md\")||e.endsWith(\"AGENTS.md\")||e.includes(\"/rules/\")||e.includes(\".checkpoint\")))||(ve.data.type===\"text\"&&ve.data.file.truncatedByTokenCap===!0))return await K();"
     },
     {
       "op": "replace",
