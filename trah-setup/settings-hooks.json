@@ -84,6 +84,11 @@
             "type": "command",
             "command": "@PY@ @HOME@/.claude/hooks/nudge-wait.py",
             "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "@PY@ @HOME@/.claude/hooks/compact-continue.py",
+            "timeout": 10
           }
         ]
       }
