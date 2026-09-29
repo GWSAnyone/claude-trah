@@ -58,5 +58,12 @@ channel, and the same fifteen lines were pasted into almost every task.
 - `critical-reviewer` (session model): judging finished work.
 - `general-purpose`: only when none of these fits. Explore is switched off.
 
+**Every answer is also on disk.** A hook saves each subagent's final message,
+with its brief, to `.claude/agent-reports/` of the session's directory, one file
+per agent, named by date, type, task and id. A summary keeps two lines of a
+twenty-thousand-character map; the file keeps all of it. Put that path in the
+plan next to the finding, and after a compaction open the file instead of
+running the agent again.
+
 An unbriefed subagent is not a cheap helper. It is a second full-price
 conversation that has to guess what you meant.
