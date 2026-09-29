@@ -181,8 +181,14 @@ Windows (Write → `C:\tmp`, Git Bash → `%TEMP%`; `C:\tmp` на машине �
 
 Поставлено `install-kit.py`: brief, agent-brief, CLAUDE.md, researcher, implementer,
 senior-reviewer, test-writer (копии `*.bak-20260929-151409`).
-**Не проверено вживую:** доставка брифа подагенту и `/compact` на 2.1.284 — нужна
-новая сессия `cfg trah`.
+**Живая проверка 29.09 15:18** (сессия `cfg trah`, `2.1.284.exe`, в командной строке оба
+флага брифа): подагент researcher видит «# Brief for a subagent» и оговорку про `/tmp`,
+бриф главной сессии до него не доходит. Заказанный `/compact` на 2.1.284 исполнился командой:
+в стенограмме `87b3fb09` 12:18:36Z `enqueue '/compact'`, 12:18:48Z запись `"/compact"` с
+`origin.selfSent:true`, следом `<command-name>/compact`, 12:19:15Z `compact_boundary`,
+затем письмо `compact-continue`. Правка `sys-compact-on-order` под Windows работает.
+Ложное срабатывание `nudge-wait`: он требовал способа пробуждения, хотя уже заказанное
+сжатие само будит сессию через `compact-continue`. Сторож об этом не знает — не починено.
 
 ## Факты разведки (23.09)
 
