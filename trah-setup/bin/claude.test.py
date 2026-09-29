@@ -292,6 +292,45 @@ def main() -> int:
               str(argv(p2)[:2]))
         os.remove(global_brief)
 
+        # ── бриф подагента ───────────────────────────────────────────────────
+        #
+        # Флаг главного подагентам ничего не приносит (замер 29.09.2026), поэтому
+        # их бриф идёт своим флагом — и за ним правила каталога, как у главного.
+        agent_brief = write(os.path.join(box.home, ".claude", "agent-brief.md"),
+                            "ПРАВИЛА подагента\n")
+        p = box.run(["-p", "x"], cwd=outside)
+        check(argv(p) == ["--append-subagent-system-prompt-file", agent_brief, "-p", "x"],
+              "вне проекта подагенту идёт его бриф", str(argv(p)))
+
+        p = box.run(["-p", "x"], cwd=deep)
+        got = argv(p)
+        sub_ok = got[:2] == ["--append-system-prompt-file", brief] \
+            and len(got) >= 4 and got[2] == "--append-subagent-system-prompt-file" \
+            and got[3] not in (agent_brief, brief) and os.path.isfile(got[3])
+        text = open(got[3], encoding="utf-8").read() if sub_ok else ""
+        check(sub_ok and text.index("ПРАВИЛА подагента") < text.index("правила проекта"),
+              "в проекте подагенту — склейка: его бриф, затем проектный", str(got))
+
+        for extra in (["--append-subagent-system-prompt", "свой"],
+                      ["--append-subagent-system-prompt-file", "/tmp/x.md"]):
+            p = box.run([*extra, "-p", "x"], cwd=outside)
+            check(argv(p) == [*extra, "-p", "x"],
+                  f"свой флаг подагента — отходим: {extra[0]}", str(argv(p)))
+
+        no_sub = write(os.path.join(root, "fake", "claude-no-sub"),
+                       "#!/usr/bin/env bash\n"
+                       'for a in "$@"; do\n'
+                       '  if [ "$a" = "--append-subagent-system-prompt-file" ]; then\n'
+                       "    printf \"error: unknown option '%s'\\n\" \"$a\" >&2; exit 1\n"
+                       "  fi\n"
+                       "done\n"
+                       'for a in "$@"; do printf \'%s\\n\' "$a"; done\n', 0o755)
+        p = box.run(["-p", "x"], cwd=outside, target=None,
+                    env_extra={"CLAUDE_WRAPPER_TARGET": no_sub})
+        check(argv(p) == ["-p", "x"], "версия без флага подагента — без него",
+              str(argv(p)))
+        os.remove(agent_brief)
+
         # ── поиск настоящего бинаря ──────────────────────────────────────────
         #
         # Главное здесь — что по умолчанию берётся САМАЯ СВЕЖАЯ версия. До

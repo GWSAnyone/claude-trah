@@ -343,13 +343,30 @@ Every brief states, explicitly and in the task text itself:
    not reopen.
 3. **The boundaries** — which directories, which files, what it must not touch,
    and whether it may edit at all or only read.
-4. **The tool discipline it must follow** — the symbolic layer is deferred in a
-   fresh agent exactly as it is for you, so tell it to pull those tools in
-   before its first search. Do not tell it to activate a project: the server it
-   inherits is already bound to this one and has no tool for switching. Nothing
-   else you set up carries over either.
-5. **The shape of the answer** — a list, a table, a verdict with file:line
-   citations. Say what you will do with the answer, so it knows what to leave out.
+4. **Who else is working next to it** — directories another agent or the owner
+   is editing right now, and whether the machine is free for a build.
+5. **The shape of the answer** — a list, a table, a verdict, a file and a
+   digest. Say what you will do with the answer, so it knows what to leave out.
+
+Do not spend the brief on the environment. The kit appends
+`~/.claude/agent-brief.md`, followed by the directory brief, to every
+subagent's system prompt. That text covers the deferred Serena tools and where
+they are blind, the hooks with their exact limits, anchors
+(`path` › `Symbol` — «fragment» instead of `file:line`), evidence marks, and
+the git, secrets and build rules. Until 29.09.2026 your own prompt was the only
+channel, and the same fifteen lines were pasted into almost every task.
+
+**Which agent.**
+- `researcher` (Sonnet): anything outside the owner's code — the web, other
+  repositories, mods, fetching, cloning or decompiling sources. It writes a
+  report file and returns a digest.
+- `senior-reviewer` (Sonnet): a map of code already on disk, the owner's or
+  foreign. The answer comes in its message.
+- `implementer` (session model): a designed change in the owner's code, proven
+  by the build and tests.
+- `test-writer` (Sonnet): tests for a module.
+- `critical-reviewer` (session model): judging finished work.
+- `general-purpose`: only when none of these fits. Explore is switched off.
 
 An unbriefed subagent is not a cheap helper. It is a second full-price
 conversation that has to guess what you meant.

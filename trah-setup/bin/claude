@@ -158,6 +158,22 @@ wants_flag() {
     return 0
 }
 
+# Бриф подагента — отдельный вопрос с тем же отказом в безопасную сторону.
+# Свой флаг у вызывающего (`--append-subagent-system-prompt[-file]`) — отходим:
+# вдвоём с нашим CLI не стартует («Cannot use both … Please use only one»).
+# `--system-prompt` главного подагентов не касается и нам не помеха.
+wants_subagent_flag() {
+    local arg
+    for arg in "$@"; do
+        case "$arg" in
+            --append-subagent-system-prompt*) return 1 ;;
+            -h|--help|-v|--version|--bare) return 1 ;;
+        esac
+        case "$SUBCOMMANDS" in *" $arg "*) return 1 ;; esac
+    done
+    return 0
+}
+
 # ── 3. Файл правил ───────────────────────────────────────────────────────────
 #
 # Проектный: ближайший .claude/brief.md вверх от текущего каталога до корня.
@@ -235,10 +251,11 @@ merge_briefs() {
 # неизвестная опция даёт «unknown option» на stderr. Вердикт кладём в кэш по
 # размеру и времени бинаря, так что платим за пробу один раз на версию.
 flag_supported() {
-    local bin="$1" sig cache cached_sig cached_verdict verdict err timeout_cmd=""
+    local bin="$1" flag="${2:---append-system-prompt-file}"
+    local sig cache cached_sig cached_verdict verdict err timeout_cmd=""
     sig=$(stat -c '%s-%Y' "$bin" 2>/dev/null) || return 1
     [ -n "$sig" ] || return 1
-    cache="$CACHE_DIR/flag-$(printf '%s' "$bin" | md5sum 2>/dev/null | cut -d ' ' -f 1)"
+    cache="$CACHE_DIR/flag-$(printf '%s %s' "$bin" "$flag" | md5sum 2>/dev/null | cut -d ' ' -f 1)"
     if [ -r "$cache" ]; then
         read -r cached_sig cached_verdict < "$cache" 2>/dev/null
         if [ "$cached_sig" = "$sig" ]; then
@@ -254,7 +271,7 @@ flag_supported() {
     # Поймано 26.08.2026 сразу после пересборки патча: вердикт пробы кэшируется
     # по подписи бинаря, пересборка её сменила, кэш протух — и проба пошла
     # заново, впервые из живого терминала.
-    err=$($timeout_cmd "$bin" --append-system-prompt-file "$(win_path /dev/null)" mcp </dev/null 2>&1 >/dev/null)
+    err=$($timeout_cmd "$bin" "$flag" "$(win_path /dev/null)" mcp </dev/null 2>&1 >/dev/null)
     # «unknown option» — единственный ответ, который значит «не поддерживает».
     # Пропала подкоманда mcp, проба не запустилась, вывод пуст — всё это НЕ
     # доказывает отсутствия флага, и выдавать их за доказательство нельзя.
@@ -397,6 +414,15 @@ trah_mcp_config() {
 
 TRAH_MODE=0
 GLOBAL_BRIEF_FILE="${HOME:-}/.claude/brief.md"
+# Бриф подагента. `--append-system-prompt-file` меняет промпт ТОЛЬКО главного:
+# замер 29.09.2026 — из 114 подагентов за две недели 23 сами открывали бриф
+# по указке заглушки CLAUDE.md, в том числе бриф главного с его персоной, и
+# 70 ходов ушли на отказы гардов, о которых подагенту никто не сказал. Флаг
+# подагента дописывает файл каждому подагенту, встроенным тоже. Справка CLI
+# обещает его только с --print; проба 29.09.2026 на 2.1.280 показала, что
+# stream-json без --print (так запускает VS Code) его тоже доносит. В TUI
+# флаг принимается без ошибки, доходит ли — не проверено.
+AGENT_BRIEF_FILE="${HOME:-}/.claude/agent-brief.md"
 TRAH_ARGS=()
 
 # Ищем `trah` не только первым словом.
@@ -557,10 +583,12 @@ if [ -z "$BIN" ]; then
     exit 127
 fi
 
+PROJECT_BRIEF=$(find_project_brief) || PROJECT_BRIEF=""
+EXTRA_ARGS=()
+
 if wants_flag "$@"; then
     GLOBAL_BRIEF=""
     readable_brief "$GLOBAL_BRIEF_FILE" && GLOBAL_BRIEF="$GLOBAL_BRIEF_FILE"
-    PROJECT_BRIEF=$(find_project_brief) || PROJECT_BRIEF=""
 
     BRIEF=""
     if [ -n "$GLOBAL_BRIEF" ] && [ -n "$PROJECT_BRIEF" ] && [ "$GLOBAL_BRIEF" != "$PROJECT_BRIEF" ]; then
@@ -574,8 +602,20 @@ if wants_flag "$@"; then
     fi
 
     if [ -n "$BRIEF" ] && flag_supported "$BIN"; then
-        exec "$BIN" "${TRAH_ARGS[@]}" --append-system-prompt-file "$(win_path "$BRIEF")" "$@"
+        EXTRA_ARGS+=(--append-system-prompt-file "$(win_path "$BRIEF")")
     fi
 fi
 
-exec "$BIN" "${TRAH_ARGS[@]}" "$@"
+# Подагенту — его бриф и бриф каталога за ним: правила каталога (дух работы,
+# когда можно собирать) касаются и того, кто работает по поручению.
+if wants_subagent_flag "$@" && readable_brief "$AGENT_BRIEF_FILE" \
+        && flag_supported "$BIN" --append-subagent-system-prompt-file; then
+    SUB_BRIEF="$AGENT_BRIEF_FILE"
+    if [ -n "$PROJECT_BRIEF" ]; then
+        SUB_BRIEF=$(merge_briefs "$AGENT_BRIEF_FILE" "$PROJECT_BRIEF") || SUB_BRIEF="$AGENT_BRIEF_FILE"
+        [ -n "$SUB_BRIEF" ] || SUB_BRIEF="$AGENT_BRIEF_FILE"
+    fi
+    EXTRA_ARGS+=(--append-subagent-system-prompt-file "$(win_path "$SUB_BRIEF")")
+fi
+
+exec "$BIN" "${TRAH_ARGS[@]}" "${EXTRA_ARGS[@]}" "$@"

@@ -130,23 +130,30 @@
       }
     },
     "attribution": {
-      "description": "Customize attribution text for commits and PRs. Each field defaults to the standard Claude Code attribution if not set.",
-      "type": "object",
-      "properties": {
-        "commit": {
-          "description": "Attribution text for git commits, including any trailers. Empty string hides attribution.",
-          "type": "string"
-        },
-        "pr": {
-          "description": "Attribution text for pull request descriptions. Empty string hides attribution.",
-          "type": "string"
-        },
-        "sessionUrl": {
-          "description": "Whether to append the claude.ai session link to commits and PRs created from web or Remote Control sessions (default: true). Set to false to omit the Claude-Session trailer and PR-body link.",
+      "description": "Customize attribution text for commits and PRs. Each field defaults to the standard Claude Code attribution if not set. Set to false to hide all attribution, the same as { \"commit\": \"\", \"pr\": \"\", \"sessionUrl\": false }. Setting it to true is the same as leaving it out. Older Claude Code versions reject true or false here, so use the object form in settings files shared across versions.",
+      "anyOf": [
+        {
           "type": "boolean"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "commit": {
+              "description": "Attribution text for git commits, including any trailers. Empty string hides attribution.",
+              "type": "string"
+            },
+            "pr": {
+              "description": "Attribution text for pull request descriptions. Empty string hides attribution.",
+              "type": "string"
+            },
+            "sessionUrl": {
+              "description": "Whether to append the claude.ai session link to commits and PRs created from web or Remote Control sessions (default: true). Set to false to omit the Claude-Session trailer and PR-body link.",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": {}
         }
-      },
-      "additionalProperties": {}
+      ]
     },
     "includeCoAuthoredBy": {
       "description": "Deprecated: Use attribution instead. Whether to include Claude's co-authored by attribution in commits and PRs (defaults to true)",
@@ -227,7 +234,7 @@
       }
     },
     "availableModels": {
-      "description": "Allowlist of models that users can select. Accepts family aliases (\"opus\" allows any opus version), version prefixes (\"opus-4-5\" allows only that version), and full model IDs. If undefined, all models are available. If empty array, only the default model is available. Typically set in managed settings by enterprise administrators.",
+      "description": "Allowlist of models that users can select. Accepts family aliases (\"opus\" allows any opus version), version prefixes (\"opus-4-5\" allows that version and any model ID that extends it, so \"claude-opus-5\" also allows \"claude-opus-5-5\"), and full model IDs. If undefined, all models are available. If empty array, only the default model is available. Typically set in managed settings by enterprise administrators.",
       "type": "array",
       "items": {
         "type": "string"
@@ -236,6 +243,21 @@
     "enforceAvailableModels": {
       "description": "When true and availableModels is a non-empty array, the Default model selection is also constrained: if the default model for the user tier is not in availableModels, Default resolves to the first allowed availableModels entry instead. Has no effect when availableModels is unset or an empty array. Typically set in managed settings by enterprise administrators.",
       "type": "boolean"
+    },
+    "availableModelsMatch": {
+      "description": "How availableModels entries match model IDs. \"prefix\" (the default) lets an entry also allow any model ID that extends it, so \"claude-opus-5\" allows \"claude-opus-5-5\". \"exact\" keeps that matching but stops a model ID entry from allowing other versions: \"claude-opus-5\" allows Opus 5 and its dated and -fast IDs, but not Opus 5.5 or a later release until it is listed, and a -latest ID needs a -latest entry. Family aliases (\"opus\") still allow the whole family; aliases whose model depends on the release or settings (best, opusplan, default) are ignored. With \"exact\" and a list that names at least one model, the Default option also uses only a listed model; if none can be used, Claude Code will not start. Haiku background models, and hooks and other helper requests that pick their own model, are not restricted (deniedModels covers them; allowManagedHooksOnly limits hooks). Read from managed settings only.",
+      "type": "string",
+      "enum": [
+        "prefix",
+        "exact"
+      ]
+    },
+    "deniedModels": {
+      "description": "Models users cannot select, even when availableModels allows them. A family alias (\"opus\") blocks that family. A model ID blocks that version in every spelling: dates, -fast and provider prefixes are ignored, so \"claude-opus-5-5\" blocks every Opus 5.5 ID but not Opus 5. An ID with no minor version (\"claude-opus-5\") also blocks later minor versions, as it allows them in availableModels. Aliases whose model depends on the release or settings (best, opusplan, default) are ignored. The Default option steps down past a blocked model; if the Default has no allowed model to step down to, Claude Code will not start. Read from managed settings only.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     },
     "modelOverrides": {
       "description": "Override mapping from Anthropic model ID (e.g. \"claude-opus-4-6\") to provider-specific model ID (e.g. a Bedrock inference profile ARN). Typically set in managed settings by enterprise administrators.",
@@ -883,7 +905,7 @@
       }
     },
     "allowManagedPermissionRulesOnly": {
-      "description": "When true (and set in managed settings), permission rules from user, project, local, and --settings files and allow rules from --allowedTools are ignored; only managed settings can add allow rules through settings. --disallowedTools and other deny and ask rules from the command line or the current session still apply.",
+      "description": "When true (and set in managed settings), permission rules from user, project, local, and --settings files and allow rules from --allowedTools are ignored; only managed settings can add allow rules through settings. The allowed-tools frontmatter of skills and custom commands from user, project, and --add-dir sources, and of plugins no managed setting vouches for, is ignored too. Plugins keep theirs only on an admin-backed channel: host-delivered --plugin-dir plugins, the official marketplace registered from its unpinned anthropics source, claude.ai-synced plugins Anthropic attests, the saved login organization's claude.ai-hosted marketplaces, marketplaces whose registered source managed extraKnownMarketplaces declares or an exact or owner-pinned (owner/*) strictKnownMarketplaces entry names at the path it pins (an npm marketplace source only when the registration and the declared entry pin the same registry, and a settings marketplace source only when every nested npm plugin entry pins one on a bare package name — unpinned, the package resolves through the member's own npm config, and a non-bare spelling packs as an exotic spec the pin does not bind, so nothing an entry names is what was fetched), and npm-direct (package@npm) plugins whose recorded resolution a registry-pinned managed npm strictKnownMarketplaces entry names (host and path patterns and enabledPlugins ids do not vouch); managed and bundled skills keep theirs. --disallowedTools, skill disallowed-tools, and other deny and ask rules from the command line or the current session still apply.",
       "type": "boolean"
     },
     "allowManagedMcpServersOnly": {
@@ -892,6 +914,10 @@
     },
     "allowAllClaudeAiMcps": {
       "description": "When true (and set in managed settings), claude.ai cloud MCP connectors load alongside managed-mcp.json instead of being suppressed by its exclusive-control lockdown. Default off preserves the lockdown. Read from managed settings only.",
+      "type": "boolean"
+    },
+    "allowClaudeInChromeWithManagedMcp": {
+      "description": "When true (and set in device managed settings: MDM, the managed-settings.json file, or a policy helper those configure), the built-in Claude in Chrome MCP server can run alongside managed-mcp.json instead of being blocked by its exclusive-control lockdown. deniedMcpServers and the organization's Claude in Chrome setting still block it. Default off preserves the lockdown.",
       "type": "boolean"
     },
     "strictPluginOnlyCustomization": {
@@ -1194,7 +1220,7 @@
                     "type": "string"
                   },
                   "registry": {
-                    "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\").",
+                    "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\"); under allowManagedPermissionRulesOnly, an npm marketplace keeps plugin allowed-tools only when both the entry and the registration pin this same registry.",
                     "type": "string",
                     "format": "uri"
                   }
@@ -1310,7 +1336,7 @@
                           "minLength": 1
                         },
                         "source": {
-                          "description": "Where to fetch the plugin from. Must be a remote source — relative paths have no marketplace repository to resolve against.",
+                          "description": "Where to fetch the plugin from. Must be a remote source — relative paths have no marketplace repository to resolve against. Under allowManagedPermissionRulesOnly, a settings marketplace keeps its plugins' allowed-tools only when every npm entry here pins a `registry` on a bare package name; unpinned, the package resolves through the member's own npm config, and a non-bare spelling (an `npm:` alias, a `name@range`, a URL or git spec) packs as an exotic spec the pin does not bind — either way the marketplace vouches no tool grants.",
                           "anyOf": [
                             {
                               "description": "Path to the plugin root, relative to the marketplace root (the directory containing .claude-plugin/, not .claude-plugin/ itself)",
@@ -1734,7 +1760,7 @@
                     "type": "string"
                   },
                   "registry": {
-                    "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\").",
+                    "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\"); under allowManagedPermissionRulesOnly, an npm marketplace keeps plugin allowed-tools only when both the entry and the registration pin this same registry.",
                     "type": "string",
                     "format": "uri"
                   }
@@ -1850,7 +1876,7 @@
                           "minLength": 1
                         },
                         "source": {
-                          "description": "Where to fetch the plugin from. Must be a remote source — relative paths have no marketplace repository to resolve against.",
+                          "description": "Where to fetch the plugin from. Must be a remote source — relative paths have no marketplace repository to resolve against. Under allowManagedPermissionRulesOnly, a settings marketplace keeps its plugins' allowed-tools only when every npm entry here pins a `registry` on a bare package name; unpinned, the package resolves through the member's own npm config, and a non-bare spelling (an `npm:` alias, a `name@range`, a URL or git spec) packs as an exotic spec the pin does not bind — either way the marketplace vouches no tool grants.",
                           "anyOf": [
                             {
                               "description": "Path to the plugin root, relative to the marketplace root (the directory containing .claude-plugin/, not .claude-plugin/ itself)",
@@ -2267,7 +2293,7 @@
                 "type": "string"
               },
               "registry": {
-                "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\").",
+                "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\"); under allowManagedPermissionRulesOnly, an npm marketplace keeps plugin allowed-tools only when both the entry and the registration pin this same registry.",
                 "type": "string",
                 "format": "uri"
               }
@@ -2383,7 +2409,7 @@
                       "minLength": 1
                     },
                     "source": {
-                      "description": "Where to fetch the plugin from. Must be a remote source — relative paths have no marketplace repository to resolve against.",
+                      "description": "Where to fetch the plugin from. Must be a remote source — relative paths have no marketplace repository to resolve against. Under allowManagedPermissionRulesOnly, a settings marketplace keeps its plugins' allowed-tools only when every npm entry here pins a `registry` on a bare package name; unpinned, the package resolves through the member's own npm config, and a non-bare spelling (an `npm:` alias, a `name@range`, a URL or git spec) packs as an exotic spec the pin does not bind — either way the marketplace vouches no tool grants.",
                       "anyOf": [
                         {
                           "description": "Path to the plugin root, relative to the marketplace root (the directory containing .claude-plugin/, not .claude-plugin/ itself)",
@@ -2787,7 +2813,7 @@
                 "type": "string"
               },
               "registry": {
-                "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\").",
+                "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\"); under allowManagedPermissionRulesOnly, an npm marketplace keeps plugin allowed-tools only when both the entry and the registration pin this same registry.",
                 "type": "string",
                 "format": "uri"
               }
@@ -2903,7 +2929,7 @@
                       "minLength": 1
                     },
                     "source": {
-                      "description": "Where to fetch the plugin from. Must be a remote source — relative paths have no marketplace repository to resolve against.",
+                      "description": "Where to fetch the plugin from. Must be a remote source — relative paths have no marketplace repository to resolve against. Under allowManagedPermissionRulesOnly, a settings marketplace keeps its plugins' allowed-tools only when every npm entry here pins a `registry` on a bare package name; unpinned, the package resolves through the member's own npm config, and a non-bare spelling (an `npm:` alias, a `name@range`, a URL or git spec) packs as an exotic spec the pin does not bind — either way the marketplace vouches no tool grants.",
                       "anyOf": [
                         {
                           "description": "Path to the plugin root, relative to the marketplace root (the directory containing .claude-plugin/, not .claude-plugin/ itself)",
@@ -3307,7 +3333,7 @@
                 "type": "string"
               },
               "registry": {
-                "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\").",
+                "description": "Registry URL. When adding a marketplace: a one-off registry override (otherwise your npm configuration decides). In a policy entry: the origin and path prefix the package's RESOLVED tarball URL must fall under (e.g. \"https://npm.example.com/api/npm/internal/\"); under allowManagedPermissionRulesOnly, an npm marketplace keeps plugin allowed-tools only when both the entry and the registration pin this same registry.",
                 "type": "string",
                 "format": "uri"
               }
@@ -3423,7 +3449,7 @@
                       "minLength": 1
                     },
                     "source": {
-                      "description": "Where to fetch the plugin from. Must be a remote source — relative paths have no marketplace repository to resolve against.",
+                      "description": "Where to fetch the plugin from. Must be a remote source — relative paths have no marketplace repository to resolve against. Under allowManagedPermissionRulesOnly, a settings marketplace keeps its plugins' allowed-tools only when every npm entry here pins a `registry` on a bare package name; unpinned, the package resolves through the member's own npm config, and a non-bare spelling (an `npm:` alias, a `name@range`, a URL or git spec) packs as an exotic spec the pin does not bind — either way the marketplace vouches no tool grants.",
                       "anyOf": [
                         {
                           "description": "Path to the plugin root, relative to the marketplace root (the directory containing .claude-plugin/, not .claude-plugin/ itself)",
@@ -3730,7 +3756,7 @@
       }
     },
     "parentSettingsBehavior": {
-      "description": "Controls whether the SDK parent tier (Options.managedSettings / --managed-settings) layers under this admin tier. \"first-wins\" (default): parent is dropped — admin tiers are the only policy source. \"merge\": parent's restrictive-only-filtered settings union under the admin winner. Has no effect when no admin tier exists (parent applies as the sole policy tier, still filtered restrictive-only).",
+      "description": "Controls whether the SDK parent tier (Options.managedSettings / --managed-settings) layers under this admin tier. \"first-wins\" (the default, except in a gateway session Claude Desktop's Code tab launched, where \"merge\" is): parent is dropped — admin tiers are the only policy source. \"merge\": parent's restrictive-only-filtered settings union under the admin winner. Has no effect when no admin tier exists (parent applies as the sole policy tier, still filtered restrictive-only).",
       "type": "string",
       "enum": [
         "first-wins",
@@ -4128,6 +4154,7 @@
           "type": "boolean"
         },
         "excludedCommands": {
+          "description": "Command patterns (Bash permission-rule syntax) that always run outside the sandbox. A convenience, not a security boundary: excluded commands still go through the permission flow. Merged across settings sources. When managed settings or a --settings file set allowUnsandboxedCommands: false, or managed settings set network.allowManagedDomainsOnly: true, values from project settings (.claude/settings.json and .claude/settings.local.json) are ignored.",
           "type": "array",
           "items": {
             "type": "string"
@@ -4242,6 +4269,12 @@
       "description": "Whether to disable syntax highlighting in diffs",
       "type": "boolean"
     },
+    "maxProseWidth": {
+      "description": "Maximum width, in terminal columns, of the prose in Claude's responses (paragraphs, headings, lists, blockquotes). In a wider terminal the prose wraps at this width while tables and code blocks keep the full width; only the display wraps, the response text itself gains no line breaks. Minimum 40. Unset (the default) uses the full terminal width.",
+      "type": "integer",
+      "minimum": 40,
+      "maximum": 9007199254740991
+    },
     "spellcheck": {
       "description": "Underline misspelled words in the prompt input as you type, using an installed aspell, hunspell or ispell (off unless \"enabled\" is true; does nothing if none is installed). Read from user, flag and managed settings only (the whole block from the highest-precedence of those applies); ignored in project .claude/settings.json and .claude/settings.local.json.",
       "type": "object",
@@ -4345,7 +4378,7 @@
       }
     },
     "ultracode": {
-      "description": "Enable ultracode for the session: xhigh effort plus standing dynamic-workflow orchestration. Session-scoped — typically provided via --settings or the apply_flag_settings control request; interactive toggles never persist it. Requires workflows to be enabled and an xhigh-capable model.",
+      "description": "Enable ultracode for the session: standing dynamic-workflow orchestration at any effort level. Session-scoped — typically provided via --settings or the apply_flag_settings control request; interactive toggles never persist it. Requires workflows to be enabled and a model that supports ultracode.",
       "type": "boolean"
     },
     "autoCompactWindow": {
@@ -4856,5 +4889,5 @@
   "additionalProperties": {},
   "title": "Claude Code Settings",
   "description": "Configuration settings for Claude Code. Learn more: https://code.claude.com/docs/en/settings",
-  "$comment": "Generated on 2026-09-21T20:47:23.537Z"
+  "$comment": "Generated on 2026-09-28T02:28:48.814Z"
 }

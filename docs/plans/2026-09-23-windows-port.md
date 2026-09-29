@@ -160,6 +160,30 @@ tausikd — остановить и убрать из автозапуска; к
 tausik-ops: `evals/portfolio.py` — `_backups` исключён из поиска проектов вне реестра
 (бэкап дома с `.tausik/` красил `REGISTRY-COMPLETE`); evals 12 ok, 0 несовпадений.
 
+## Обновление с апстрима 29.09.2026 (2.1.284, Sonnet 5.5, бриф подагента)
+
+Слит `origin/main` (`644bbdc`…`fdb2e23`). Конфликты — три:
+- `bin/claude`: `flag_supported` получил параметр флага, `exec` стал сборкой `EXTRA_ARGS`;
+  наш `win_path` сохранён на всех трёх путях (бриф, бриф подагента, проба `/dev/null`);
+- `global-CLAUDE.md`: наш текст про обёртку + их абзац про `agent-brief.md`;
+- `agents/senior-reviewer.md`: их версия целиком, без `sequential-thinking`
+  (владелец его убрал 23.09).
+
+tweakcc-fixed → `b1ff247` (2.8.31, поддержка 2.1.284). Якорей разошлось два, оба
+Windows-only: `sys-compact-on-order` (uuid `p→g`, приоритет `g→f`) и
+`reminder-compact-file-reference` (у Windows результат чтения `ke`, у Linux `ve` —
+правки разделены по `platform`). В Windows-правку добавлен `\rules\`: `/rules/` не
+ловил `~/.claude/rules/*.md` с обратной косой. Сборка: 25 кусков, `verify` без ✗,
+33 набора зелёные, `current.exe → 2.1.284.exe`.
+
+`agent-brief.md`: деревья владельца названы для обеих машин; оговорка про `/tmp` на
+Windows (Write → `C:\tmp`, Git Bash → `%TEMP%`; `C:\tmp` на машине существует).
+
+Поставлено `install-kit.py`: brief, agent-brief, CLAUDE.md, researcher, implementer,
+senior-reviewer, test-writer (копии `*.bak-20260929-151409`).
+**Не проверено вживую:** доставка брифа подагенту и `/compact` на 2.1.284 — нужна
+новая сессия `cfg trah`.
+
 ## Факты разведки (23.09)
 
 - Якоря: 32 из 33 правок trah встречаются в `claude.exe` 2.1.280 (байтовый счёт).

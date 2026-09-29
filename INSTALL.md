@@ -265,7 +265,13 @@ claude --version                                     # обёртка не сл�
 будет пустой, а счёт кеша всё равно будет копиться. Ничего не сломается.
 
 **Про подагентов.** `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1` (агент не зовёт
-агента) и `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=6` вписываются установщиком.
+агента) и `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS=6` вписываются установщиком,
+как и запрет `Agent(Explore)`: вместо Explore и general-purpose работают
+`researcher` и `implementer`. `researcher`, `senior-reviewer` и `test-writer`
+ходят на Sonnet (`model: sonnet`, с 2.1.284 это Sonnet 5.5), `implementer` и
+`critical-reviewer` — на модели сессии. Бриф подагента ставится в
+`~/.claude/agent-brief.md` и подаётся обёрткой; править его — в
+`trah-setup/agent-brief.md`, не на месте.
 
 ## Шаг 7. Обезличить
 

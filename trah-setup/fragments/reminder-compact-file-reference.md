@@ -12,12 +12,21 @@
   "note_переезд_269": "Четвёртый переезд, четвёртая переписка якоря — предсказание из заметки о 2.1.257 сбылось снова. Сдвинулось ОДНО имя: функция, отдающая ссылку, `D` → `O`. `F` (результат чтения), `d` (откуда пришёл вызов) и `e` (путь) остались как были — видно по соседству `dy_read_file\",filename:e,displayPath:XF(Z(),e),content:F.data}}` и `if(i(r,{}),d===\"at-mention\")`. Смысл правки снова не менялся ни на букву",
   "note_переезд_273": "Пятый переезд, пятая переписка якоря. 16.09.2026, 2.1.273: результат чтения `F` → `fe`, функция, отдающая ссылку, `O` → `B`. `d` (откуда пришёл вызов) и `e` (путь) остались — видно по соседству `d===\"at-mention\"`, `{type:\"already_read_file\",filename:e,…,content:fe.data}`. Смысл правки не менялся",
   "note_переезд_276": "Шестой переезд. 18.09.2026, 2.1.276: результат чтения `fe` → `he`, откуда пришёл вызов `d` → `g` — он участвует и в нашей замене. `B` и `e` остались. Соседство: `g===\"at-mention\"`, `content:he.data`",
+  "note_windows_284": "29.09.2026, 2.1.284: Windows-сборка минифицирована иначе, правок стало две. В Windows-бинаре результат чтения `ke` (`content:ke.data`), функция ссылки `K`, `g===\"at-mention\"`, путь `e`. Windows-правке добавлено `\\\\rules\\\\`: путь там с обратной косой, и `/rules/` не ловил `~/.claude/rules/*.md` — правила уходили из контекста пометкой после каждого сжатия",
   "edits": [
     {
       "op": "replace",
-      "anchor": "if(he.data.type===\"text\"&&he.data.file.truncatedByTokenCap===!0)return await B();",
+      "platform": "linux",
+      "anchor": "if(ve.data.type===\"text\"&&ve.data.file.truncatedByTokenCap===!0)return await K();",
       "count": 1,
-      "with": "if((g===\"compact\"&&!(e.endsWith(\"CLAUDE.md\")||e.endsWith(\"AGENTS.md\")||e.includes(\"/rules/\")||e.includes(\".checkpoint\")))||(he.data.type===\"text\"&&he.data.file.truncatedByTokenCap===!0))return await B();"
+      "with": "if((g===\"compact\"&&!(e.endsWith(\"CLAUDE.md\")||e.endsWith(\"AGENTS.md\")||e.includes(\"/rules/\")||e.includes(\".checkpoint\")))||(ve.data.type===\"text\"&&ve.data.file.truncatedByTokenCap===!0))return await K();"
+    },
+    {
+      "op": "replace",
+      "platform": "windows",
+      "anchor": "if(ke.data.type===\"text\"&&ke.data.file.truncatedByTokenCap===!0)return await K();",
+      "count": 1,
+      "with": "if((g===\"compact\"&&!(e.endsWith(\"CLAUDE.md\")||e.endsWith(\"AGENTS.md\")||e.includes(\"/rules/\")||e.includes(\"\\\\rules\\\\\")||e.includes(\".checkpoint\")))||(ke.data.type===\"text\"&&ke.data.file.truncatedByTokenCap===!0))return await K();"
     },
     {
       "op": "replace",

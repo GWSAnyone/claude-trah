@@ -57,6 +57,9 @@ from pathlib import Path
     # и мог сколь угодно разойтись со сборкой в репозитории — а правит он каждую
     # сессию. Теперь он часть комплекта и приезжает вместе со всем остальным.
     ("trah-brief.md", ".claude/brief.md"),
+    # Бриф подагента, 29.09.2026. Бриф главного до подагентов не доходит:
+    # обёртка подаёт этот файл флагом `--append-subagent-system-prompt-file`.
+    ("agent-brief.md", ".claude/agent-brief.md"),
     ("global-CLAUDE.md", ".claude/CLAUDE.md"),
     ("rules/mcp-discipline.md", ".claude/rules/mcp-discipline.md"),
     ("agents/senior-reviewer.md", ".claude/agents/senior-reviewer.md"),
@@ -76,9 +79,16 @@ from pathlib import Path
     # установки, дальше ноль. Нишу «широкий поиск по дереву» съел патч про
     # батчи — главная сессия делает 3.35 символьных вызова за ход и треть ходов
     # несёт четыре и больше, то есть ищет вширь сама и без чужого контекста.
-    # Что осталось от ниши, закрывает встроенный Explore.
+    # Что осталось от ниши, закрывал встроенный Explore.
+    #
+    # researcher и implementer, 29.09.2026 — вместо general-purpose и Explore.
+    # Замер 59 заданий им за две недели: 34 — веб, скачивание и чтение чужих
+    # исходников, 16 — карта кода (это senior-reviewer), 8 — написание кода.
+    # Explore выключен запретом `Agent(Explore)`: он пропускает CLAUDE.md целиком.
     ("agents/critical-reviewer.md", ".claude/agents/critical-reviewer.md"),
     ("agents/test-writer.md", ".claude/agents/test-writer.md"),
+    ("agents/researcher.md", ".claude/agents/researcher.md"),
+    ("agents/implementer.md", ".claude/agents/implementer.md"),
     ("skills/start/SKILL.md", ".claude/skills/start/SKILL.md"),
     ("serena/context-claude-code.yml", ".serena/contexts/claude-code.yml"),
     # Память Serena, общая на все экосистемы. Имя при установке МЕНЯЕТСЯ: в

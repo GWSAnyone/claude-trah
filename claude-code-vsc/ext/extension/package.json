@@ -2,7 +2,7 @@
   "name": "claude-code",
   "displayName": "Claude Code for VS Code",
   "description": "Claude Code for VS Code: Harness the power of Claude Code without leaving your IDE",
-  "version": "2.1.280",
+  "version": "2.1.284",
   "publisher": "Anthropic",
   "license": "© Anthropic PBC. All rights reserved. Use is subject to the Legal Agreements outlined here: https://code.claude.com/docs/en/legal-and-compliance.",
   "bugs": {
@@ -159,6 +159,12 @@
           "default": true,
           "scope": "application",
           "description": "Scroll the conversation to the bottom when you send a message. When off, the conversation stays where you left it."
+        },
+        "claudeCode.showMessageTimestamps": {
+          "type": "boolean",
+          "default": false,
+          "scope": "application",
+          "description": "Show when each message was sent. A date line marks where the day changes."
         },
         "claudeCode.archiveInactiveSessions": {
           "type": "number",
