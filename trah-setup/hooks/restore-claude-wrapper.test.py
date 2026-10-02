@@ -181,6 +181,16 @@ def main() -> int:
         check("2.1.233" not in to_remove, "закреплённая версия из сноса вычтена",
               to_remove[:200])
 
+        # Оригинал пропатченной копии trah — тоже: без него копию не пересобрать.
+        trah = os.path.join(home, ".local", "share", "claude", "trah")
+        os.makedirs(trah, exist_ok=True)
+        os.symlink("2.1.234", os.path.join(trah, "current"))
+        proc = run_hook(home, link, versions, pin=pin)
+        to_remove = proc.stdout.split("rm ")[-1]
+        check("2.1.234" not in to_remove and "2.1.235" in to_remove,
+              "оригинал копии trah из сноса вычтен, остальное старьё — нет", to_remove[:200])
+        os.remove(os.path.join(trah, "current"))
+
         # ── версий немного — молчание ───────────────────────────────────────
         for name in ("2.1.233", "2.1.234", "2.1.235"):
             os.remove(os.path.join(versions, name))

@@ -71,6 +71,9 @@ VERSIONS_DIR = os.environ.get("GWS_CLAUDE_WRAPPER_VERSIONS") \
     or os.path.expanduser("~/.local/share/claude/versions")
 PIN_FILE = os.environ.get("GWS_CLAUDE_WRAPPER_PIN") \
     or os.path.expanduser("~/.local/share/claude/wrapper-pin")
+# Пропатченная копия режима trah: имя, на которое указывает ссылка, — номер
+# версии, из оригинала которой она собрана.
+TRAH_CURRENT = os.path.expanduser("~/.local/share/claude/trah/current")
 
 # Сколько версий держать: текущую, предыдущую на случай отката и одну про запас.
 KEEP_VERSIONS = 3
@@ -141,14 +144,22 @@ def versions_note() -> str | None:
     except OSError:
         pass
 
-    stale = [n for n in sorted(names, key=version_key)[:-KEEP_VERSIONS] if n != pinned]
+    # Оригинал, из которого собрана копия trah, тоже не трогаем: обёртка
+    # запускает копию, а не новейшую версию, и без оригинала её не пересобрать.
+    # 02.10.2026 хук предложил снести именно его — 2.1.284 при прицеле 2.1.284.
+    keep = {pinned}
+    if os.path.islink(TRAH_CURRENT):
+        keep.add(os.path.basename(os.readlink(TRAH_CURRENT)))
+
+    stale = [n for n in sorted(names, key=version_key)[:-KEEP_VERSIONS] if n not in keep]
     if not stale:
         return None
     paths = " ".join(os.path.join(VERSIONS_DIR, n) for n in stale)
     return (f"{len(names)} claude versions have piled up ({size / 2 ** 30:.1f} GB). "
             f"The installer stopped removing the old ones — the entry point is not its "
             f"symlink but a wrapper, and it does not know which version that wrapper "
-            f"needs. The newest one always runs, so the spare ones can be removed:"
+            f"needs. These are neither among the newest, nor pinned, nor the original "
+            f"of the patched trah build, so they can be removed:"
             f"\n    rm {paths}")
 
 

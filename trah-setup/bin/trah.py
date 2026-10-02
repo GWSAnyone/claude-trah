@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Трах-режим: сборка патченой КОПИИ Claude Code и проверка доставки.
 
+Человек зовёт это через дверь `./trah` (`build`, `upgrade`, `brief`,
+`tests`); команды ниже — то, что дверь вызывает, и то, что нужно сопровождающему.
+
     trah.py check   [версия]   сухая сверка якорей: что сломалось, СПИСКОМ
     trah.py build   [версия]   собрать копию из кусков доктрины, записать манифест
     trah.py verify  [версия]   пробами проверить, что куски доехали до модели
     trah.py tests              все наборы проверок комплекта, один приговор
     trah.py upgrade <версия>   переезд целиком: сверка → сборка → доставка →
                                проверки → и только потом прицел
-    trah.py status  [версия]   что стоит сейчас
     trah.py brief   <область> [--lean] [--write]  собрать бриф из кусков
     trah.py modules [--install]  указатель модулей брифа для службы
 
@@ -778,21 +780,6 @@ def проба(копия: Path, режим: str) -> dict[str, str]:
     return описания
 
 
-def status(версия: str | None) -> int:
-    версия, оригинал, копия, файл_суммы, файл_манифеста = пути(версия)
-    print(f"версия:   {версия}")
-    print(f"оригинал: {оригинал} ({'цел' if файл_суммы.exists() and сумма(оригинал) == файл_суммы.read_text().split()[0] else 'сумма не снята или разошлась'})")
-    print(f"копия:    {копия} ({'есть' if копия.exists() else 'нет'})")
-    if файл_манифеста.exists():
-        м = json.loads(файл_манифеста.read_text())
-        print(f"собрано:  {м['собрано']}")
-        for id_, с in м["куски"].items():
-            print(f"  {id_:<28} {с['маршрут']:<7} доставка: {с['доставлен']}")
-    else:
-        print("манифеста нет")
-    return 0
-
-
 # ── бриф ─────────────────────────────────────────────────────────────────────
 #
 # Бриф собирается из кусков маршрута `brief` — тех, что раньше лежали двумя
@@ -1024,9 +1011,12 @@ def modules(аргумент: str | None) -> int:
 
 
 def main() -> int:
-    команда = sys.argv[1] if len(sys.argv) > 1 else "status"
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+        print(__doc__)
+        return 0
+    команда = sys.argv[1]
     аргумент = sys.argv[2] if len(sys.argv) > 2 and not sys.argv[2].startswith("-") else None
-    return {"build": build, "verify": verify, "status": status,
+    return {"build": build, "verify": verify,
             "brief": brief, "modules": modules, "check": check,
             "upgrade": upgrade, "tests": lambda _: проверки()}[команда](аргумент)
 

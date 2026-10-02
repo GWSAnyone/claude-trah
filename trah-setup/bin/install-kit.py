@@ -718,8 +718,8 @@ def доклад(отчёт: Отчёт, есть: dict) -> None:
     print("    ни потолка батча, ни брифа.")
 
     print("\nПРОВЕРИТЬ:")
-    print("  python3 ~/.claude/hooks/guard-destructive.test.py   # провалов: 0")
-    print("  ./trah status                                      # что где стоит")
+    print("  ./trah tests    # сорвалось 0")
+    print("  ./trah status   # что где стоит")
     print("─" * 70)
     if отчёт.всухую:
         print("Это был показ. Ничего не записано. Повторить без --dry-run.")

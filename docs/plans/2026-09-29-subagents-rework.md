@@ -197,6 +197,27 @@ critical-reviewer не трогать. Ссылки `file:line` заменить
   от другой сессии (peer message), а не как команда, и сжатия не было. Доставка
   заказа через сокет сломана или изменилась в 2.1.280 — разобрать отдельно.
 
+- 02.10: **Claude Mods (2.1.287, по умолчанию включены).** Плагин с JS/TS-модулем
+  `register(on)` в процессе CLI. Документация: code.claude.com/docs/en/plugins/mods
+  и `/mods/reference`; типы — `mods/types/claude-code.d.ts` в anthropics/claude-code.
+  Покрывают наши патчи бинаря на уровне прозы, а не минифицированного кода:
+  `prompt.compose`/`prompt.section` (секции системного промпта по стабильным id) —
+  куски `sys-*`; `tool.describe` (+ `isDeferred`) — куски `tool-*`;
+  `prompt.attachment` по `type` — `reminder-*`; `attribution.text` — трейлеры;
+  `agent.spawn` (переписать prompt, модель, отказать) и `agent.offer` (спрятать тип)
+  — подагенты; `prompt.context` — блоки первого сообщения (`claudeMd`, `userEmail`).
+  Не покрывают: семантику клавиш (Esc / `chat:cancel` — события нет, есть только
+  `$.turn.abort`), доставку брифа в системный промпт подагента. В VS Code хуки модов
+  работают, рисование — нет. На 2.1.284 — ранний доступ за
+  `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS` (9 вхождений в cli.js), API мог отличаться.
+  Не проверено: доходит ли `prompt.compose` до промптов подагентов, оценщика `/goal`
+  и сжатия.
+- 02.10: `./trah all` при новой версии на машине сам идёт в `upgrade`: попытка
+  2.1.284 → 2.1.287 упала на якоре `reminder-compact-file-reference` (0 вхождений),
+  прицел и `current` не тронуты. Без переезда звать `./trah all --version 2.1.284`.
+- 02.10: `restore-claude-wrapper.py` › `versions_note` предлагал снести оригинал
+  копии trah (`versions/2.1.284`). Починено: вычитается имя из `trah/current`.
+
 ## Что пробовали и отвергли
 
 - Пробы с задержками внутри хода модели (`sleep`, затем `timeout N tail -f
