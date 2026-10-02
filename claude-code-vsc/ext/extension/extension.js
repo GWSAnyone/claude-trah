@@ -142811,6 +142811,8 @@ class _X {
               sessionTotalsDelivered: 0,
               turnsCompleted: 0,
               responseTiming: N,
+              // форк: заказ сжатия, сделанный до этого канала, к нему не относится
+              forkStartedAt: Date.now(),
             };
           if (
             (this.channels.set($, L1),
@@ -143083,7 +143085,8 @@ class _X {
                     L1.sessionId !== void 0 &&
                     !iw($1)
                   )
-                    this.onSessionTurnCompleted(L1.sessionId);
+                    (this.onSessionTurnCompleted(L1.sessionId),
+                      this.forkCompactOnOrder(L1));
                   if (
                     ($1.type === "result" && !iw($1)) ||
                     $1.type === "prompt_suggestion"
@@ -146602,6 +146605,46 @@ class _X {
         );
       }
     });
+  }
+  // форк: сжатие по заказу самой сессии.
+  //
+  // `compact-order.py` кладёт заказ файлом `~/.claude/compact-orders/<id>`, и в
+  // терминале его исполняет мод trah в конце хода. Здесь не может: для CLI
+  // сессия VS Code — SDK, и `$.session.compact` в ней отклоняется («not
+  // available in a headless (-p / SDK) session yet … a /compact prompt»,
+  // 2.1.287, проверено 02.10.2026). До 2.1.287 заказ шёл кадром в сокет через
+  // правку бинаря; с переездом на мод она снята. Остаётся то, что подсказывает
+  // сам CLI: хост шлёт `/compact` обычным сообщением после хода — ровно как при
+  // ручном вводе. Текст файла — довесок к указаниям пересказа.
+  forkCompactOnOrder($) {
+    if ($.sessionId === void 0) return;
+    let J = require("fs"),
+      Q = require("path").join(
+        require("os").homedir(),
+        ".claude",
+        "compact-orders",
+        $.sessionId,
+      ),
+      X,
+      Y;
+    try {
+      ((X = J.statSync(Q).mtimeMs), (Y = J.readFileSync(Q, "utf8").trim()));
+    } catch {
+      return;
+    }
+    if (X <= Math.max($.forkStartedAt ?? 0, $.forkCompactDoneAt ?? 0)) return;
+    $.forkCompactDoneAt = X;
+    let z = require("crypto").randomUUID();
+    ((this.logger.log(`fork: compaction ordered by session ${$.sessionId}`),
+      ($.turnComplete = !1)),
+      $.outstandingSendUuids.push(z),
+      $.in.enqueue({
+        type: "user",
+        uuid: z,
+        session_id: "",
+        parent_tool_use_id: null,
+        message: { role: "user", content: "/compact" + (Y ? " " + Y : "") },
+      }));
   }
   async setPermissionMode($, J, Q) {
     if (!tm1(J))

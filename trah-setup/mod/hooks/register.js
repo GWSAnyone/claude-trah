@@ -100,6 +100,11 @@ async function ссылкаПослеСжатия($, e, текст) {
 // прошлого исполненного: удалить файл мод не может (`$.fs` без удаления).
 // `$.session.compact` «отклоняется, пока идёт ход» — если `turn.complete` ещё
 // считается ходом, вызов повторяется сразу за ним.
+//
+// В SDK-сессии (VS Code) `$.session.compact` отклоняется всегда: «not available
+// in a headless (-p / SDK) session yet» (2.1.287, проверено 02.10.2026). Там
+// заказ исполняет форк расширения — `forkCompactOnOrder` в
+// `claude-code-vsc/ext/extension/extension.js` шлёт `/compact` после хода.
 const СТАРТ = Date.now()
 let исполнен = 0
 
