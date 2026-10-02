@@ -1,7 +1,8 @@
 ---
 {
   "id": "tool-readfile-compact",
-  "route": "binary",
+  "route": "mod",
+  "mod": {"event": "tool.describe", "tool": "Read"},
   "why": "Read описывает себя как способ читать файл целиком; символьное чтение отдаёт запрошенный символ, остальное в контекст не попадает",
   "edits": [
     {

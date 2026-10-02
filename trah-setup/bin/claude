@@ -451,6 +451,28 @@ if [ "$TRAH_WORD" = 1 ]; then
             "claude trah: патченой сборки нет ($SHARE_DIR/trah/current) — запускаю штатную" >&2
     fi
 
+    # Мод — парный копии: `mod-<версия>` той же версии, что `current`. Чужой
+    # версии не берём: её якоря собраны под другой текст, а у 2.1.284 и старше
+    # мода нет вовсе — там всё в бинарном патче.
+    #
+    # Моды грузятся, только пока Anthropic держит включённым флаг раскатки
+    # `tengu_plugin_hooks_modules`. 02.10.2026 он раз пришёл выключенным, и мод не
+    # загрузился вовсе: куски маршрута mod молча стали штатными. Обходить
+    # выключатель не стали (владелец, 02.10: заметить и предупредить). Проверяем
+    # кэш флага в `.claude.json`: с ним CLI стартует, пока сервер не ответил.
+    # Выключение посреди сессии отсюда не видно.
+    _mod="$SHARE_DIR/trah/mod-$(readlink "$SHARE_DIR/trah/current" 2>/dev/null)"
+    if [ -d "$_mod" ]; then
+        TRAH_ARGS+=(--plugin-dir "$_mod")
+        # По нему `compact-order.py` кладёт заказ файлом для мода, а не кадром в сокет.
+        export TRAH_MOD="$_mod"
+        _flag=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("cachedGrowthBookFeatures",{}).get("tengu_plugin_hooks_modules"))' \
+            "${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json" 2>/dev/null)
+        [ "$_flag" = False ] && printf '%s\n' \
+            "claude trah: Anthropic выключила моды (флаг tengu_plugin_hooks_modules) — правки маршрута mod в этой сессии не действуют, текст штатный" >&2
+    fi
+    unset _mod _flag
+
     # Разделы `# Delivering work` и `# Corrections` — принудительно.
     #
     # Оба штатные, текст Anthropic, и оба закрыты вентилем: сборщик промпта
@@ -484,8 +506,15 @@ if [ "$TRAH_WORD" = 1 ]; then
     # Второй раз не добавляем: у владельца в fish функция `claude` уже
     # подставляет свой флаг разрешений, и два флага об одном — в лучшем случае
     # шум, в худшем отказ разбора.
+    #
+    # `--allow-dangerously-skip-permissions` (его подставляет fish) bypass только
+    # РАЗРЕШАЕТ, а не включает: стартовый режим тогда берётся из
+    # `permissions.defaultMode`, и 02.10.2026 сессия trah поднялась в `auto` —
+    # у владельца в настройках `"defaultMode": "auto"`. Поэтому при нём режим
+    # называется явно. Заданный руками `--permission-mode` не трогаем.
     case " $* " in
-        *" --dangerously-skip-permissions "*|*" --allow-dangerously-skip-permissions "*) ;;
+        *" --dangerously-skip-permissions "*|*" --permission-mode "*|*" --permission-mode="*) ;;
+        *" --allow-dangerously-skip-permissions "*) TRAH_ARGS+=(--permission-mode bypassPermissions) ;;
         *) TRAH_ARGS+=(--dangerously-skip-permissions) ;;
     esac
 fi

@@ -91,9 +91,14 @@ def чекпоинт(каталог: str, session_id: str, возраст_мин
 
 
 def run(cwd: str, аргументы: list[str], сокет_путь: str | None,
-        session_id: str = "abcdef12-0000"):
+        session_id: str = "abcdef12-0000", мод_дом: str | None = None):
     env = dict(os.environ, TRAH_HOOKS_DIR=ХУКИ, CLAUDE_CODE_SESSION_ID=session_id)
     env.pop("CLAUDE_PID", None)
+    # Сессия, запущенная обёрткой с модом, несёт TRAH_MOD: без этой строки тест
+    # сокетного пути шёл бы файловым (02.10.2026, «кадр доехал ровно один []»).
+    env.pop("TRAH_MOD", None)
+    if мод_дом:
+        env["TRAH_MOD"], env["HOME"] = "мод", мод_дом
     if сокет_путь:
         env["CLAUDE_CODE_MESSAGING_SOCKET"] = сокет_путь
     else:
@@ -200,6 +205,24 @@ def main() -> int:
             run(tmp, [], ухо.путь, session_id="aaaaaaaa-1111")
             код, вых, ош = run(tmp, [], ухо.путь, session_id="bbbbbbbb-2222")
             check("заказ соседней сессии не мешает", код == 0, ош[:200])
+        finally:
+            ухо.закрыть()
+
+    # ── заказ модом (2.1.287+, обёртка выставила TRAH_MOD) ────────────────────
+    print("заказ модом")
+    with tempfile.TemporaryDirectory() as tmp:
+        чекпоинт(tmp, "cccccccc-3333", возраст_мин=1)
+        ухо = Ухо(str(Path(tmp) / "сессия.sock"))
+        try:
+            код, вых, ош = run(tmp, ["сожми", "покороче"], ухо.путь,
+                               session_id="cccccccc-3333", мод_дом=tmp)
+            заказ = Path(tmp) / ".claude" / "compact-orders" / "cccccccc-3333"
+            check("модом — код 0", код == 0, ош[:200])
+            check("заказ лёг файлом сессии", заказ.is_file(), str(заказ))
+            check("в файле довесок к указаниям",
+                  заказ.is_file() and заказ.read_text(encoding="utf-8") == "сожми покороче")
+            time.sleep(0.4)
+            check("в сокет кадр не ушёл", not ухо.строки, str(ухо.строки))
         finally:
             ухо.закрыть()
 

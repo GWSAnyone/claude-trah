@@ -98,8 +98,16 @@ def main(аргументы: list[str]) -> int:
     вхолостую = "--dry-run" in аргументы
     довесок = " ".join(a for a in аргументы if not a.startswith("--")).strip()
 
-    путь = sockmsg.путь_сокета()
-    if not путь or not os.path.exists(путь):
+    # На 2.1.287+ заказ исполняет мод trah, а не щель в обработчике сокета:
+    # обёртка, подключив мод, выставляет TRAH_MOD. Кадр `/compact` по сокету
+    # там приехал бы модели обычным текстом.
+    модом = bool(os.environ.get("TRAH_MOD"))
+    путь = (str(Path.home() / ".claude/compact-orders" / os.environ.get("CLAUDE_CODE_SESSION_ID", ""))
+            if модом else sockmsg.путь_сокета())
+    if модом and not os.environ.get("CLAUDE_CODE_SESSION_ID"):
+        sys.stderr.write("CLAUDE_CODE_SESSION_ID пуст: не знаю, какой сессии заказ.\n")
+        return 2
+    if not модом and (not путь or not os.path.exists(путь)):
         sys.stderr.write(
             "Сокет сессии не найден: заказать сжатие некуда.\n"
             f"  CLAUDE_CODE_MESSAGING_SOCKET={os.environ.get('CLAUDE_CODE_MESSAGING_SOCKET')!r}\n"
@@ -153,7 +161,11 @@ def main(аргументы: list[str]) -> int:
         return 0
 
     try:
-        sockmsg.отправить(путь, кадр)
+        if модом:
+            Path(путь).parent.mkdir(parents=True, exist_ok=True)
+            Path(путь).write_text(довесок, encoding="utf-8")
+        else:
+            sockmsg.отправить(путь, кадр)
     except OSError as e:
         sys.stderr.write(f"Кадр не ушёл: {e}\n")
         return 2

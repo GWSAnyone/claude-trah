@@ -246,5 +246,32 @@ else:
               отчёт and отчёт[0]["ждём"] == 1 and отчёт[0]["прямо"] == 1, str(отчёт))
     проверить("сверка не подставляет текст", "ZZZ" not in текст, текст[:200])
 
+print("\nмаршрут mod: данные мода и сборка")
+проверить("JS-экранирование становится прозой",
+          trah.разэкранировать(r"a — b \`c\`") == "a — b `c`")
+данные = trah.данные_мода([
+    {"id": "к1", "route": "mod", "тело": "ТЕЛО",
+     "mod": {"event": "tool.describe", "tool": "Bash", "необязателен": True},
+     "edits": [{"op": "insert_after", "anchor": "ЯКОРЬ"}]},
+    {"id": "к2", "route": "binary", "edits": []},
+])["правки"]
+проверить("кусок не с маршрута mod в мод не идёт", [п["id"] for п in данные] == ["к1"])
+проверить("отбор события — без event и без пометки необязательности",
+          данные[0]["event"] == "tool.describe" and данные[0]["match"] == {"tool": "Bash"})
+проверить("insert_after — якорь, перевод строки и тело",
+          данные[0]["правки"] == [{"anchor": "ЯКОРЬ", "with": "ЯКОРЬ\nТЕЛО"}])
+with tempfile.TemporaryDirectory() as т:
+    мод = trah.собрать_мод(Path(т) / "mod")
+    движок = (мод / "hooks/register.js").read_text(encoding="utf-8")
+    свои = [к["id"] for к in trah.прочитать_куски() if к.get("route") == "mod"]
+    проверить("данные подставлены вместо меток", "/*@ДАННЫЕ@*/" not in движок)
+    проверить("в моде все куски маршрута mod", свои and all(f'"{и}"' in движок for и in свои),
+              f"кусков {len(свои)}")
+    проверить("манифест плагина на месте", (мод / ".claude-plugin/plugin.json").is_file())
+    if shutil.which("node"):
+        г = subprocess.run(["node", "--check", str(мод / "hooks/register.js")],
+                           capture_output=True, text=True)
+        проверить("собранный движок разбирается node", г.returncode == 0, г.stderr[:300])
+
 print("провалов:", провалов)
 sys.exit(1 if провалов else 0)

@@ -111,6 +111,20 @@ from pathlib import Path
     # в сессии нет, хуже отсутствующего — он уводит по ложному следу.
     ("skills/browser/SKILL.md", ".claude/skills/browser/SKILL.md"),
     ("skills/security/SKILL.md", ".claude/skills/security/SKILL.md"),
+    # Защёлка дублей, 02.10.2026 (релиз 1.0). Ядро и настройка — в ~/.claude/dedup,
+    # хук `dedup-latch.py` ставится каталогом hooks/, настройка — у проекта
+    # (`.claude/dedup.json`), по умолчанию «не настроено»: хук предлагает
+    # настроить или выключить, ничего не сканируя.
+    ("dedup/dedup.py", ".claude/dedup/dedup.py"),
+    ("dedup/dedupconf.py", ".claude/dedup/dedupconf.py"),
+    ("dedup/dedup-setup.py", ".claude/dedup/dedup-setup.py"),
+    ("dedup/dedup-split.py", ".claude/dedup/dedup-split.py"),
+    ("dedup/dedup.sh", ".claude/dedup/dedup.sh"),
+    ("dedup/judge-brief.md", ".claude/dedup/judge-brief.md"),
+    ("skills/dedup/SKILL.md", ".claude/skills/dedup/SKILL.md"),
+    ("skills/dedup/SETUP.md", ".claude/skills/dedup/SETUP.md"),
+    ("skills/dedup/categorize.md", ".claude/skills/dedup/categorize.md"),
+    ("skills/dedup/find-duplicates.md", ".claude/skills/dedup/find-duplicates.md"),
     # Кран строки состояния, 29.08.2026. С 2.1.251 во вход строки состояния
     # приезжают `prompt_cache` и `rate_limits` — числа, которых хукам взять
     # больше неоткуда. Кран садится ПЕРЕД настоящим сборщиком строки и
@@ -310,6 +324,10 @@ def положить(отчёт: "Отчёт", откуда: Path, куда: Pat
         if куда.read_bytes() == новое:
             отчёт.шаг(f"  = {куда}")
             отчёт.поставлено[куда] = новое
+            # Совпало содержимое, но право запуска могло потеряться (первая
+            # установка шла без него) — его возвращаем и тут.
+            if исполняемый and not отчёт.всухую and not os.access(куда, os.X_OK):
+                куда.chmod(0o755)
             return
         свой = отчёт.наш_ли(куда)
         if not свой and not отчёт.заменять_чужое:
@@ -374,7 +392,9 @@ def поставить_общее(отчёт: Отчёт, дом: Path, есть
                 f"{откуда}: нет MCP-сервера «{нужен}» — навык обещал бы инструменты, "
                 f"которых в сессии не будет. Поставить: claude mcp add {нужен} …")
             continue
-        положить(отчёт, КОМПЛЕКТ / откуда, дом / куда)
+        # Инструменты защёлки дублей зовут по имени (`dedup.sh`, `dedup-setup.py`).
+        положить(отчёт, КОМПЛЕКТ / откуда, дом / куда,
+                 исполняемый=откуда.startswith("dedup/") and откуда.endswith((".sh", ".py")))
 
     # Переходник для расширения VS Code. Ставится ВСЕГДА, даже если VS Code
     # на машине нет: файл в две строки, а вот забытый переходник стоит дорого.
