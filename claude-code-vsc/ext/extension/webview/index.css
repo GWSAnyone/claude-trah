@@ -42,6 +42,7 @@ html {
   --app-primary-background: var(--vscode-sideBar-background);
   --app-primary-border-color: var(--vscode-sideBarActivityBarTop-border);
   --app-secondary-foreground: var(--vscode-descriptionForeground);
+  --app-link-foreground: var(--vscode-textLink-foreground);
   --app-secondary-background: var(--vscode-editor-background);
   --app-input-foreground: var(--vscode-input-foreground);
   --app-input-background: var(--vscode-input-background);
@@ -591,6 +592,14 @@ html {
   margin-top: 4px;
   margin-bottom: 12px;
 }
+.textLink_-a7MRw {
+  text-decoration: underline dotted;
+}
+.textLinkHref_-a7MRw {
+  color: var(--app-secondary-foreground);
+  text-decoration: none;
+  word-break: break-all;
+}
 .narrationSummary_o3SSrg > span > p:last-child {
   display: inline;
 }
@@ -668,7 +677,6 @@ html {
 }
 .toolNameTextSecondary_ZUQaOA {
   font-family: var(--app-monospace-font-family);
-  color: var(--app-link-color);
   word-break: break-all;
   overflow-wrap: anywhere;
   flex: 1;
@@ -684,7 +692,7 @@ html {
   min-width: 0;
 }
 .toolNameTextSecondary_ZUQaOA a {
-  color: inherit;
+  color: var(--app-link-foreground);
   text-decoration: none;
 }
 .toolNameTextSecondary_ZUQaOA a:hover {
@@ -1225,6 +1233,120 @@ html {
 }
 .otherInput_hONcXw:focus-within {
   border-color: var(--app-input-active-border);
+}
+.previewPane_hONcXw {
+  overflow: auto;
+  box-sizing: border-box;
+  border: 1px solid var(--app-widget-border);
+  background-color: var(--app-code-background);
+  color: var(--app-primary-foreground);
+  outline: none;
+  border-radius: 4px;
+  padding: 0 8px 8px;
+}
+.previewBody_hONcXw,
+.previewEmpty_hONcXw {
+  font-family: var(--app-monospace-font-family);
+  font-size: var(--app-monospace-font-size);
+}
+.withPreview_hONcXw {
+  display: flex;
+  overflow: hidden auto;
+  flex-direction: column;
+  max-height: calc(70vh - 8em);
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+.withPreview_hONcXw > .navigationBar_hONcXw {
+  flex-shrink: 0;
+}
+.withPreview_hONcXw > .questionsContainer_hONcXw {
+  flex: 0 auto;
+  min-height: min(7em, 13vh);
+  max-height: 30vh;
+}
+.withPreview_hONcXw > .previewPane_hONcXw {
+  flex: 0 3 min(calc(var(--preview-lines) * 1.3em + 3em), 35vh);
+  min-height: min(8em, 13vh);
+  margin-bottom: 8px;
+}
+@media (min-width: 576px) {
+  .withPreview_hONcXw {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    overflow: visible;
+    column-gap: 12px;
+    max-height: none;
+    margin: 0;
+    padding: 0;
+  }
+  .withPreview_hONcXw > .navigationBar_hONcXw {
+    grid-column: 1/-1;
+  }
+  .withPreview_hONcXw > .questionsContainer_hONcXw {
+    min-height: 0;
+    max-height: 40vh;
+    margin-top: 0;
+    margin-right: 0;
+  }
+  .withPreview_hONcXw > .previewPane_hONcXw {
+    contain: size;
+    min-height: min(calc(var(--preview-lines) * 1.3em + 3em), 40vh);
+  }
+}
+.previewCaption_hONcXw {
+  position: sticky;
+  z-index: 1;
+  background-color: var(--app-code-background);
+  color: var(--app-secondary-foreground);
+  margin: 0 -8px 4px;
+  padding: 4px 8px;
+  font-size: 0.85em;
+  top: 0;
+  left: 0;
+}
+.previewPane_hONcXw .previewBody_hONcXw p {
+  white-space: pre;
+}
+.previewPane_hONcXw .previewBody_hONcXw div:has(> pre) {
+  margin: 0;
+}
+.previewPane_hONcXw .previewBody_hONcXw pre {
+  overflow: visible;
+  max-width: none;
+  padding: 0;
+}
+.previewPane_hONcXw .previewBody_hONcXw button:has(+ pre) {
+  display: none;
+}
+.previewEmpty_hONcXw {
+  color: var(--app-secondary-foreground);
+  font-style: italic;
+}
+.optionHighlighted_hONcXw {
+  box-shadow: inset 2px 0 0 0 var(--app-button-background);
+}
+.statusLine_hONcXw svg {
+  vertical-align: text-bottom;
+  height: 1em;
+  margin-left: 0.2em;
+}
+.reviewBody_hONcXw {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 8px;
+}
+.optionReadOnly_hONcXw,
+.optionReadOnly_hONcXw:hover {
+  cursor: default;
+  background-color: #0000;
+}
+.optionDimmed_hONcXw {
+  opacity: 0.6;
+}
+.typedAnswer_hONcXw {
+  white-space: pre-wrap;
 }
 .bashCommand_F2hEIg {
   outline: none;
@@ -7255,38 +7377,6 @@ html {
     display: none;
   }
 }
-.innerCallList_3H9AYw {
-  grid-column: 1/-1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 4px;
-}
-.innerCall_3H9AYw {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  min-width: 0;
-}
-.innerCallHeader_3H9AYw {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  flex: 1;
-  min-width: 0;
-}
-.innerCallComplete_3H9AYw {
-  opacity: 0.5;
-}
-.innerCallError_3H9AYw {
-  color: var(--app-error-foreground);
-}
-.innerCallSpinner_3H9AYw {
-  color: var(--app-secondary-foreground);
-  flex-shrink: 0;
-}
 .todoListContainer_xheXVQ {
   grid-column: 1/-1;
   display: flex;
@@ -7367,6 +7457,17 @@ html {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+}
+.visuallyHidden_ZQjaqw {
+  position: absolute;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
 }
 .root_aqhumA {
   display: flex;
@@ -7614,17 +7715,6 @@ button {
   width: 100%;
   height: 100%;
 }
-.visuallyHidden_ZQjaqw {
-  position: absolute;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-}
 .notice_KPdslw {
   box-sizing: border-box;
   border: 1px solid
@@ -7645,6 +7735,13 @@ button {
   padding: 10px 12px;
   font-size: 0.9em;
   line-height: 1.4;
+}
+.emptyTab_KPdslw {
+  display: flex;
+  padding: var(--app-spacing-large);
+  flex-direction: column;
+  flex: 1;
+  justify-content: flex-end;
 }
 .container_Eg8KCQ {
   display: flex;
@@ -9106,6 +9203,10 @@ button {
 .counts_iHnHpw {
   margin-top: 12px;
 }
+.output_iHnHpw {
+  overflow-y: auto;
+  max-height: 240px;
+}
 .transcript_DfSQBw {
   border-top: 1px solid var(--app-primary-border-color);
   margin-top: 8px;
@@ -9294,21 +9395,21 @@ button {
 }
 .successMessage_IHCQeQ {
   color: #74c991;
+  font-size: var(--vscode-chat-font-size, 13px);
   background-color: #74c99133;
   border: 1px solid #74c991;
   border-radius: 4px;
   margin-bottom: 12px;
   padding: 8px 12px;
-  font-size: 13px;
 }
 .errorMessage_IHCQeQ {
   color: #c74e39;
+  font-size: var(--vscode-chat-font-size, 13px);
   background-color: #c74e3933;
   border: 1px solid #c74e39;
   border-radius: 4px;
   margin-bottom: 12px;
   padding: 8px 12px;
-  font-size: 13px;
 }
 .retryLink_IHCQeQ {
   color: inherit;
@@ -9332,8 +9433,8 @@ button {
   margin: 8px 0;
 }
 .hint_IHCQeQ {
+  font-size: var(--vscode-chat-font-size, 13px);
   opacity: 0.7;
-  font-size: 13px;
 }
 .hint_IHCQeQ code {
   font-family: var(--app-monospace-font-family);
@@ -9364,24 +9465,24 @@ button {
 }
 .serverName_IHCQeQ {
   font-family: var(--app-monospace-font-family);
+  font-size: var(--vscode-chat-font-size, 13px);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
   font-weight: 500;
 }
 .statusBadge_IHCQeQ {
   display: inline-flex;
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 1px);
   white-space: nowrap;
   border-radius: 4px;
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  font-size: 12px;
   font-weight: 500;
 }
 .statusIcon_IHCQeQ {
-  font-size: 10px;
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 3px);
 }
 .statusBadge_IHCQeQ.connected_IHCQeQ {
   color: #fff;
@@ -9409,11 +9510,11 @@ button {
 .backButton_IHCQeQ {
   color: var(--app-secondary-foreground);
   cursor: pointer;
+  font-size: var(--vscode-chat-font-size, 13px);
   background: 0 0;
   border: none;
   margin-bottom: 12px;
   padding: 4px 0;
-  font-size: 13px;
 }
 .backButton_IHCQeQ:hover {
   text-decoration: underline;
@@ -9429,8 +9530,8 @@ button {
 }
 .detailTitle_IHCQeQ {
   font-family: var(--app-monospace-font-family);
+  font-size: calc(var(--vscode-chat-font-size, 13px) + 3px);
   margin: 0;
-  font-size: 16px;
   font-weight: 600;
 }
 .awaitingAuth_IHCQeQ {
@@ -9445,9 +9546,9 @@ button {
   gap: 12px;
 }
 .authWaitingText_IHCQeQ {
+  font-size: var(--vscode-chat-font-size, 13px);
   color: var(--app-secondary-foreground);
   margin: 0;
-  font-size: 13px;
 }
 .callbackUrlSection_IHCQeQ {
   display: flex;
@@ -9456,8 +9557,8 @@ button {
   margin-top: 4px;
 }
 .callbackUrlLabel_IHCQeQ {
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 1px);
   color: var(--app-secondary-foreground);
-  font-size: 12px;
 }
 .callbackUrlInputRow_IHCQeQ {
   display: flex;
@@ -9465,8 +9566,8 @@ button {
   gap: 8px;
 }
 .callbackUrlInput_IHCQeQ {
-  font-size: 12px;
-  font-family: var(--app-font-family-mono);
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 1px);
+  font-family: var(--app-monospace-font-family);
   color: var(--app-input-foreground);
   background: var(--app-input-background);
   border: 1px solid var(--app-input-border);
@@ -9483,11 +9584,11 @@ button {
   border: 1px solid var(--app-input-border);
   background-color: var(--app-input-secondary-background);
   color: var(--app-primary-foreground);
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 1px);
   cursor: pointer;
   border-radius: 4px;
   flex-shrink: 0;
   padding: 6px 12px;
-  font-size: 12px;
 }
 .callbackUrlSubmit_IHCQeQ:hover {
   background-color: var(--app-list-hover-background);
@@ -9497,11 +9598,11 @@ button {
   border: 1px solid var(--app-input-border);
   background-color: var(--app-input-secondary-background);
   color: var(--app-primary-foreground);
+  font-size: var(--vscode-chat-font-size, 13px);
   cursor: pointer;
   border-radius: 4px;
   width: 100%;
   padding: 10px 16px;
-  font-size: 13px;
 }
 .actionButton_IHCQeQ:hover:not(:disabled) {
   background-color: var(--app-list-hover-background);
@@ -9527,10 +9628,10 @@ button {
   background-color: #c74e3933;
 }
 .scopeHeading_IHCQeQ {
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 1px);
   color: var(--app-secondary-foreground);
   margin-top: 8px;
   padding: 8px 0 4px;
-  font-size: 12px;
   font-weight: 600;
 }
 .scopeHeading_IHCQeQ:first-child {
@@ -9539,12 +9640,12 @@ button {
 .viewToolsLink_IHCQeQ {
   color: var(--app-secondary-foreground);
   cursor: pointer;
+  font-size: var(--vscode-chat-font-size, 13px);
   text-align: left;
   background: 0 0;
   border: none;
   margin-top: 16px;
   padding: 0;
-  font-size: 13px;
 }
 .viewToolsLink_IHCQeQ:hover {
   text-decoration: underline;
@@ -9555,10 +9656,10 @@ button {
 }
 .toolItem_IHCQeQ {
   display: flex;
+  font-size: var(--vscode-chat-font-size, 13px);
   align-items: center;
   gap: 8px;
   padding: 6px 0;
-  font-size: 13px;
 }
 .toolItem_IHCQeQ:before {
   content: "·";
@@ -9567,15 +9668,15 @@ button {
 }
 .toolName_IHCQeQ {
   font-family: var(--app-monospace-font-family);
-  font-size: 13px;
+  font-size: var(--vscode-chat-font-size, 13px);
   font-weight: 500;
 }
 .toolAnnotation_IHCQeQ {
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 2px);
   color: #74c991;
   background-color: #74c99133;
   border-radius: 3px;
   padding: 2px 6px;
-  font-size: 11px;
 }
 .toolAnnotation_IHCQeQ.destructive_IHCQeQ {
   color: #c74e39;
@@ -9589,14 +9690,14 @@ button {
 .link_IHCQeQ {
   color: var(--app-secondary-foreground);
   text-decoration: none;
-  font-size: 13px;
+  font-size: var(--vscode-chat-font-size, 13px);
 }
 .link_IHCQeQ:hover {
   text-decoration: underline;
 }
 .formTitle_IHCQeQ {
+  font-size: calc(var(--vscode-chat-font-size, 13px) + 3px);
   margin: 0 0 16px;
-  font-size: 16px;
   font-weight: 600;
 }
 .formField_IHCQeQ {
@@ -9606,12 +9707,12 @@ button {
   margin-bottom: 12px;
 }
 .formLabel_IHCQeQ {
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 1px);
   color: var(--app-secondary-foreground);
-  font-size: 12px;
   font-weight: 600;
 }
 .formInput_IHCQeQ {
-  font-size: 13px;
+  font-size: var(--vscode-chat-font-size, 13px);
   font-family: var(--app-monospace-font-family);
   color: var(--app-input-foreground);
   background: var(--app-input-background);
@@ -9624,7 +9725,7 @@ button {
   border-color: var(--app-input-active-border);
 }
 .formTextarea_IHCQeQ {
-  font-size: 13px;
+  font-size: var(--vscode-chat-font-size, 13px);
   font-family: var(--app-monospace-font-family);
   color: var(--app-input-foreground);
   background: var(--app-input-background);
@@ -9665,22 +9766,22 @@ button {
   gap: 2px;
 }
 .scopeOptionLabel_IHCQeQ {
-  color: var(--app-primary-foreground);
-  font-size: 13px;
   font-weight: 500;
+  font-size: var(--vscode-chat-font-size, 13px);
+  color: var(--app-primary-foreground);
 }
 .scopeOptionDescription_IHCQeQ {
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 1px);
   color: var(--app-secondary-foreground);
-  font-size: 12px;
 }
 .scopeWarning_IHCQeQ {
   background-color: var(--app-warning-background);
   border: 1px solid var(--app-warning-accent);
   color: var(--app-warning-foreground);
+  font-size: calc(var(--vscode-chat-font-size, 13px) - 1px);
   border-radius: 4px;
   margin-top: 8px;
   padding: 8px 12px;
-  font-size: 12px;
 }
 .formActions_IHCQeQ {
   display: flex;
@@ -9694,8 +9795,8 @@ button {
   gap: 8px;
 }
 .confirmRemoveText_IHCQeQ {
+  font-size: var(--vscode-chat-font-size, 13px);
   color: var(--app-secondary-foreground);
-  font-size: 13px;
 }
 .statusDot_BIoFGQ {
   display: inline-block;
@@ -9869,70 +9970,12 @@ button {
   font-size: 13px;
   font-style: italic;
 }
-.panel_UCAeZQ {
-  display: flex;
-  overflow: hidden;
-  position: relative;
-  border-left: 1px solid var(--app-widget-border);
-  background: var(--app-primary-background);
-  flex-direction: column;
-  flex: 0 0 clamp(240px, 30%, 420px);
-  min-width: 0;
-}
-.resizeHandle_UCAeZQ {
-  position: absolute;
-  cursor: col-resize;
-  z-index: 1;
-  touch-action: none;
-  width: 6px;
-  top: 0;
-  bottom: 0;
-  left: 0;
-}
-.resizeHandle_UCAeZQ:hover,
-.resizeHandle_UCAeZQ.resizing_UCAeZQ {
-  background: var(--app-splitter-hover-background);
-  outline: none;
-}
-.resizeHandle_UCAeZQ:focus-visible {
-  background: var(--app-splitter-hover-background);
-  outline: none;
-}
-@media (max-width: 500px) {
-  .panel_UCAeZQ {
-    border-left: none;
-    border-top: 1px solid var(--app-widget-border);
-    flex: 0 0 clamp(180px, 45%, 360px);
-  }
-  .resizeHandle_UCAeZQ {
-    cursor: row-resize;
-    width: auto;
-    height: 6px;
-    inset: 0 0 auto;
-  }
-}
-.header_UCAeZQ {
-  display: flex;
-  padding: var(--app-spacing-medium) var(--app-spacing-large);
-  border-bottom: 1px solid var(--app-widget-border);
-  align-items: center;
-  gap: 6px;
-}
 .spark_UCAeZQ {
   display: block;
   color: var(--app-claude-clay-button-orange);
   flex-shrink: 0;
   width: 14px;
   height: 14px;
-}
-.title_UCAeZQ {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--app-primary-foreground);
-  flex: 1;
-  min-width: 0;
-  font-weight: 600;
 }
 .thread_UCAeZQ {
   overflow-y: auto;
@@ -9963,13 +10006,6 @@ button {
 }
 .answer_UCAeZQ {
   overflow-wrap: break-word;
-}
-.message_UCAeZQ {
-  color: var(--app-primary-foreground);
-  opacity: 0.6;
-  font-size: var(--app-monospace-font-size);
-  margin: 0;
-  font-style: italic;
 }
 .pendingGlyph_UCAeZQ {
   font-family: var(--app-monospace-font-family);
@@ -10060,6 +10096,71 @@ button {
   width: 20px;
   height: 20px;
 }
+.panel_TgmhTA {
+  display: flex;
+  overflow: hidden;
+  position: relative;
+  border-left: 1px solid var(--app-widget-border);
+  background: var(--app-primary-background);
+  flex-direction: column;
+  flex: 0 0 clamp(240px, 30%, 420px);
+  min-width: 0;
+}
+.resizeHandle_TgmhTA {
+  position: absolute;
+  cursor: col-resize;
+  z-index: 1;
+  touch-action: none;
+  width: 6px;
+  top: 0;
+  bottom: 0;
+  left: 0;
+}
+.resizeHandle_TgmhTA:hover,
+.resizeHandle_TgmhTA.resizing_TgmhTA {
+  background: var(--app-splitter-hover-background);
+  outline: none;
+}
+.resizeHandle_TgmhTA:focus-visible {
+  background: var(--app-splitter-hover-background);
+  outline: none;
+}
+@media (max-width: 500px) {
+  .panel_TgmhTA {
+    border-left: none;
+    border-top: 1px solid var(--app-widget-border);
+    flex: 0 0 clamp(180px, 45%, 360px);
+  }
+  .resizeHandle_TgmhTA {
+    cursor: row-resize;
+    width: auto;
+    height: 6px;
+    inset: 0 0 auto;
+  }
+}
+.header_TgmhTA {
+  display: flex;
+  padding: var(--app-spacing-medium) var(--app-spacing-large);
+  border-bottom: 1px solid var(--app-widget-border);
+  align-items: center;
+  gap: 6px;
+}
+.title_TgmhTA {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--app-primary-foreground);
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+.message_TgmhTA {
+  color: var(--app-primary-foreground);
+  opacity: 0.6;
+  font-size: var(--app-monospace-font-size);
+  margin: 0;
+  font-style: italic;
+}
 .diagnosticContainer_1z-gnA {
   display: flex;
   flex-direction: column;
@@ -10070,7 +10171,7 @@ button {
 }
 .diagnosticSubtitle_1z-gnA {
   font-family: var(--app-monospace-font-family);
-  color: var(--app-link-color);
+  color: var(--app-link-foreground);
   word-break: break-all;
   overflow-wrap: anywhere;
   flex: 1;
@@ -10324,7 +10425,7 @@ button {
   max-width: 280px;
 }
 .message_AV_aEg {
-  color: var(--app-text-secondary);
+  color: var(--app-secondary-foreground);
   text-align: center;
   gap: 4px;
   font-size: 11px;
@@ -10521,6 +10622,16 @@ button {
 }
 .subagentRow_mpBgEA.subagentRow_mpBgEA span {
   flex-shrink: 0;
+}
+.cardLine_Ahxk3Q {
+  display: flex;
+  flex-direction: column;
+}
+.focusRow_Ahxk3Q {
+  position: relative;
+}
+.focusRow_Ahxk3Q.focusRow_Ahxk3Q:before {
+  display: none;
 }
 .card_ONXlBg {
   display: flex;
@@ -12374,7 +12485,7 @@ textarea.memoryText_XfsNxw:focus {
 }
 .emptyState_pZbgXw {
   text-align: center;
-  color: var(--app-secondary-text);
+  color: var(--app-secondary-foreground);
   padding: 8px;
 }
 .fileItem_pZbgXw {
@@ -14472,6 +14583,9 @@ span.indicator_a_iRsA.cold_a_iRsA {
   color: var(--app-error-foreground);
   padding: 32px 16px;
 }
+.loadErrorRetry_yumWmQ {
+  margin-top: 12px;
+}
 .pluginList_yumWmQ {
   list-style: none;
   margin: 0;
@@ -14490,6 +14604,10 @@ span.indicator_a_iRsA.cold_a_iRsA {
 }
 .pluginItem_yumWmQ:hover {
   border-color: var(--app-input-active-border);
+}
+.pluginItemHighlighted_yumWmQ {
+  background-color: var(--app-list-active-background);
+  color: var(--app-list-active-foreground);
 }
 .pluginInfo_yumWmQ {
   flex: 1;
@@ -14527,6 +14645,10 @@ span.indicator_a_iRsA.cold_a_iRsA {
   gap: 8px;
   margin-left: 12px;
 }
+.actionUnavailable_yumWmQ {
+  display: inline-flex;
+  opacity: 0.5;
+}
 .actionButton_yumWmQ {
   cursor: pointer;
   border: 1px solid var(--app-input-border);
@@ -14543,6 +14665,10 @@ span.indicator_a_iRsA.cold_a_iRsA {
   background-color: var(--app-button-background);
   color: var(--app-button-foreground);
   border-color: #0000;
+}
+.actionButton_yumWmQ:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .actionButton_yumWmQ.primary_yumWmQ:hover {
   filter: brightness(1.1);
@@ -14714,6 +14840,16 @@ span.indicator_a_iRsA.cold_a_iRsA {
 .scopeOptionDescription_yumWmQ {
   color: var(--app-secondary-foreground);
 }
+.fieldInputInvalid_yumWmQ {
+  border-color: var(--app-error-foreground);
+}
+.fieldError_yumWmQ {
+  color: var(--app-error-foreground);
+}
+.requiredMark_yumWmQ {
+  color: var(--app-error-foreground);
+  margin-left: 2px;
+}
 .cancelLink_yumWmQ {
   color: var(--app-secondary-foreground);
   cursor: pointer;
@@ -14846,6 +14982,100 @@ span.indicator_a_iRsA.cold_a_iRsA {
   border-radius: 3px;
   padding: 1px 4px;
   font-size: 10px;
+}
+.bookmarkButton_tS4bCQ {
+  display: flex;
+  cursor: pointer;
+  opacity: 0;
+  justify-content: center;
+  align-items: center;
+}
+.bookmarked_tS4bCQ {
+  opacity: 1;
+}
+.icon_tS4bCQ {
+  width: 14px;
+  height: 14px;
+}
+.icon_CGNcsg {
+  display: block;
+  color: var(--app-primary-foreground);
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+.body_CGNcsg {
+  display: flex;
+  gap: var(--app-spacing-medium);
+  padding: var(--app-spacing-medium);
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.list_CGNcsg {
+  flex: 0 auto;
+  max-height: 35%;
+}
+.list_CGNcsg li .row_CGNcsg {
+  border: none;
+  border-bottom: 1px solid var(--app-widget-border);
+  font: inherit;
+  text-align: left;
+  background: 0 0;
+  width: 100%;
+}
+.list_CGNcsg li:last-child .row_CGNcsg {
+  border-bottom: none;
+}
+.list_CGNcsg li .row_CGNcsg:hover {
+  background-color: var(--app-list-hover-background);
+}
+.list_CGNcsg li .selected_CGNcsg,
+.list_CGNcsg li .selected_CGNcsg:hover,
+.list_CGNcsg li .selected_CGNcsg span {
+  background-color: var(--app-list-active-background);
+  color: var(--app-list-active-foreground);
+}
+.reprint_CGNcsg {
+  display: flex;
+  border: 1px solid var(--app-widget-border);
+  border-radius: 4px;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.reprintActions_CGNcsg {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--app-spacing-medium);
+  padding: var(--app-spacing-small) var(--app-spacing-medium);
+  border-bottom: 1px solid var(--app-widget-border);
+}
+.reprintText_CGNcsg {
+  overflow: auto;
+  padding: 0 var(--app-spacing-medium);
+  user-select: text;
+  flex: 1;
+  min-height: 0;
+}
+.linkButton_CGNcsg {
+  color: var(--app-secondary-foreground);
+  cursor: pointer;
+  font-size: inherit;
+  text-decoration: underline;
+  background: 0 0;
+  border: none;
+  padding: 0;
+}
+.linkButton_CGNcsg:hover {
+  color: var(--app-primary-foreground);
+}
+.notShown_CGNcsg {
+  color: var(--app-secondary-foreground);
+}
+.pick_CGNcsg {
+  padding: 0 var(--app-spacing-small);
 }
 .commandList_HPzOag {
   margin: 8px 0;
@@ -15178,6 +15408,14 @@ span.indicator_a_iRsA.cold_a_iRsA {
 }
 .short_VBlAgQ {
   display: none;
+}
+.openable_VBlAgQ {
+  cursor: pointer;
+}
+.open_VBlAgQ {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: center;
 }
 @media screen and (max-width: 330px) {
   .full_VBlAgQ {
@@ -16181,690 +16419,4 @@ span.indicator_a_iRsA.cold_a_iRsA {
   color: var(--app-error-foreground);
   margin-top: 4px;
   font-size: 11px;
-}
-
-/* ─────────── правки форка ─────────── */
-
-/* Палитра с запасным ходом.
-   `--vscode-charts-*` тема даёт не всегда, а `color: var(--нет-такой)` — это
-   недействительное объявление: браузер выбрасывает его целиком, и текст
-   остаётся серым. Отличить «цвет не тот» от «цвета нет» на глаз нельзя, поэтому
-   у каждого цвета стоит запасной, а у запасного — свой. */
-body {
-  --fork-blue: var(
-    --vscode-charts-blue,
-    var(--vscode-terminal-ansiBlue, #4a9edb)
-  );
-  --fork-purple: var(
-    --vscode-charts-purple,
-    var(--vscode-terminal-ansiMagenta, #b180d7)
-  );
-  --fork-green: var(
-    --vscode-charts-green,
-    var(--vscode-terminal-ansiGreen, #3f9950)
-  );
-  --fork-orange: var(
-    --vscode-charts-orange,
-    var(--vscode-terminal-ansiYellow, #d18616)
-  );
-  --fork-yellow: var(
-    --vscode-charts-yellow,
-    var(--vscode-terminal-ansiYellow, #d1a416)
-  );
-}
-
-/* Рабочий каталог сессии, полоска над полем ввода. Имя без хеша модуля —
-   так видно, что класс наш, а не пришёл из сборки апстрима. */
-.forkCwdStrip {
-  padding: 2px 10px 4px;
-  font-size: 11px;
-  line-height: 1.4;
-  font-family: var(--vscode-editor-font-family, monospace);
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.75;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: default;
-  display: block;
-  width: 100%;
-  max-width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  border-radius: 4px;
-  appearance: none;
-}
-.forkCwdStrip:hover {
-  opacity: 1;
-}
-
-/* Пока сессия пуста, каталог ещё можно сменить — полоска становится кнопкой */
-.forkCwdStripEditable {
-  cursor: pointer;
-}
-.forkCwdStripEditable:hover {
-  background: var(--vscode-toolbar-hoverBackground);
-}
-.forkCwdStripEditable:focus-visible {
-  outline: 1px solid var(--vscode-focusBorder);
-  outline-offset: -1px;
-}
-
-/* Сводка хода и цикла — строкой в ленте, между сообщениями */
-.forkNoteLine {
-  margin: 4px 0;
-  padding: 2px 0;
-  font-size: 11px;
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-variant-numeric: tabular-nums;
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.65;
-  cursor: default;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.forkNoteLine:hover {
-  opacity: 1;
-}
-
-/* Цвета сводки. Взяты из палитры темы (`--vscode-charts-*`), а не зашиты
-   шестнадцатеричными: на светлой теме зашитые превратились бы в нечитаемое.
-   Смысл тот же, что у Завра: прибавка — то, за чем следят; чтение и запись
-   кэша — две разные дороги одного расхода; пачка — единственное, чем ход можно
-   было сделать лучше. */
-.forkNoteAdd {
-  color: var(--vscode-foreground);
-  font-weight: 600;
-}
-.forkNoteRead {
-  color: var(--fork-blue);
-}
-.forkNoteWrite {
-  color: var(--fork-purple);
-}
-.forkNoteOut {
-  color: var(--fork-green);
-}
-.forkNoteBatch {
-  color: var(--fork-green);
-  font-weight: 600;
-}
-/* Один вызов за заход — пачки не было. Тихо. */
-.forkNoteSolo {
-  color: var(--vscode-descriptionForeground);
-}
-.forkNoteTime {
-  color: var(--fork-orange);
-  opacity: 0.85;
-}
-/* Конец цикла виден отчётливее хода: это граница «реплика → ответ» */
-.forkNoteEnd {
-  opacity: 0.85;
-  border-top: 1px solid var(--vscode-descriptionForeground);
-  padding-top: 5px;
-  margin-top: 7px;
-}
-.forkNoteEnd:hover {
-  opacity: 1;
-}
-
-/* Вызов инструмента раскрывается: заголовок — маркер, тело — под ним */
-.forkToolSummary {
-  cursor: pointer;
-}
-.forkToolSummary::-webkit-details-marker {
-  display: none;
-}
-.forkTool > .forkToolSummary::before {
-  content: "▸ ";
-  opacity: 0.5;
-}
-.forkTool[open] > .forkToolSummary::before {
-  content: "▾ ";
-}
-/* Знак рода действия. Цвет тот же, что у величин: читаем — синий, правим —
-   янтарный, ищем — фиолетовый. По колонке знаков лента листается глазами. */
-.forkGlyph {
-  display: inline-block;
-  width: 1.1em;
-  margin-right: 5px;
-  opacity: 0.8;
-  font-weight: 400;
-}
-.forkGlyph-read {
-  color: var(--fork-blue);
-}
-.forkGlyph-edit {
-  color: var(--fork-orange);
-}
-.forkGlyph-find,
-.forkGlyph-mcp,
-.forkGlyph-mem {
-  color: var(--fork-purple);
-}
-.forkGlyph-shell {
-  color: var(--fork-green);
-}
-.forkGlyph-task,
-.forkGlyph-skill {
-  color: var(--fork-yellow);
-}
-.forkGlyph-web {
-  color: var(--vscode-textLink-foreground);
-}
-.forkGlyph-todo,
-.forkGlyph-think,
-.forkGlyph-other {
-  color: var(--vscode-descriptionForeground);
-}
-
-/* Правка через MCP: путь с пометкой и дифф под ним */
-.forkDiffWrap {
-  margin: 6px 0;
-}
-.forkDiffPath {
-  font-family: var(--app-monospace-font-family);
-  font-size: 0.85em;
-  color: var(--vscode-descriptionForeground);
-  margin-bottom: 2px;
-}
-.forkDiffMark {
-  margin-left: 8px;
-  color: var(--fork-orange);
-}
-.forkCodeBlock {
-  margin: 0;
-  padding: 6px 8px;
-  border: 0.5px solid var(--app-input-border);
-  border-radius: 5px;
-  background: var(--app-tool-background);
-  font-family: var(--app-monospace-font-family);
-  font-size: 0.85em;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  max-height: 50vh;
-  overflow: auto;
-}
-
-.forkToolMeta {
-  color: var(--app-secondary-foreground);
-  opacity: 0.6;
-  font-size: 0.85em;
-}
-/* Размышление. Строка отмечает границу «здесь модель думала», и её ищут
-   глазами при прокрутке, — поэтому она не сливается с фоном. */
-.forkThinkingBare {
-  color: var(--fork-purple);
-  opacity: 0.75;
-}
-.forkThinkingBare:hover {
-  opacity: 1;
-}
-.thinkingV2_aHyQPQ > .thinkingSummary_aHyQPQ {
-  color: var(--fork-purple);
-  opacity: 0.8;
-}
-.thinkingV2_aHyQPQ[open] > .thinkingSummary_aHyQPQ {
-  opacity: 1;
-}
-/* Выжимка размышления: отбита слева чертой, как цитата, и читается своим
-   размером. Без этого она сливалась с ответом — а это разные вещи: одно модель
-   думала, другое сказала. */
-.thinkingContent_aHyQPQ {
-  border-left: 2px solid var(--fork-purple);
-  padding: 2px 0 2px 10px;
-  margin-left: 2px;
-  opacity: 0.9;
-  line-height: 1.5;
-  overflow-wrap: anywhere;
-}
-.thinkingContent_aHyQPQ pre,
-.thinkingContent_aHyQPQ code {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* Ответ Serena: символ строкой, тело — вложенной складкой */
-.forkSrGroup + .forkSrGroup {
-  margin-top: 8px;
-}
-.forkSrFile {
-  font-family: var(--app-monospace-font-family);
-  font-size: 0.85em;
-  opacity: 0.6;
-  margin-bottom: 2px;
-}
-.forkSrCount {
-  margin-left: 6px;
-  opacity: 0.7;
-}
-.forkSrRow {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: wrap;
-  font-family: var(--app-monospace-font-family);
-  font-size: 0.85em;
-}
-.forkSrKind {
-  color: var(--app-secondary-foreground);
-  opacity: 0.7;
-  font-size: 0.9em;
-  min-width: 58px;
-  display: inline-block;
-}
-.forkSrKind.is-function,
-.forkSrKind.is-method,
-.forkSrKind.is-ctor {
-  color: var(--fork-blue);
-  opacity: 1;
-}
-.forkSrKind.is-class,
-.forkSrKind.is-struct,
-.forkSrKind.is-interface,
-.forkSrKind.is-enum {
-  color: var(--fork-orange);
-  opacity: 1;
-}
-.forkSrKind.is-variable,
-.forkSrKind.is-const,
-.forkSrKind.is-field,
-.forkSrKind.is-property {
-  color: var(--fork-green);
-  opacity: 1;
-}
-.forkSrName {
-  font-weight: 600;
-  color: var(--vscode-foreground);
-}
-.forkSrPath,
-.forkSrLine {
-  opacity: 0.55;
-}
-.forkSrBody {
-  margin: 2px 0 6px;
-}
-.forkSrBody > summary {
-  cursor: pointer;
-  font-size: 0.8em;
-  opacity: 0.55;
-  list-style: none;
-}
-.forkSrBody > summary::-webkit-details-marker {
-  display: none;
-}
-.forkSrBody > summary::before {
-  content: "▸ ";
-}
-.forkSrBody[open] > summary::before {
-  content: "▾ ";
-}
-.forkSrLines {
-  margin: 0;
-}
-
-/* Раскрытое тело не обрезается 60 пикселями, а прокручивается */
-.forkTool[open] .toolBodyRowContent_ZUQaOA {
-  mask-image: none;
-  overflow: auto;
-  max-height: 60vh;
-}
-
-/* Длинная строка переносится, а не уезжает за край.
-   У `pre` по умолчанию `white-space: pre` — переносов нет вовсе, — а апстрим
-   добавляет сверху `overflow: hidden`. Вдвоём это значит, что хвост строки
-   просто исчезает: полосы прокрутки нет, и о том, что текст продолжается,
-   узнать неоткуда. Именно так пропадал вывод Serena и ответ AskUserQuestion. */
-.forkTool pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  overflow: visible;
-  tab-size: 2;
-}
-
-/* Строка над полем ввода: слева путь, справа счётчики отрезка */
-.forkCwdRow {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-.forkCwdRow > .forkCwdStrip {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.forkTokens {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding-right: 10px;
-  font-size: 11px;
-  font-family: var(--vscode-editor-font-family, monospace);
-  font-variant-numeric: tabular-nums;
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.8;
-  white-space: nowrap;
-  cursor: default;
-}
-.forkTokens:hover {
-  opacity: 1;
-}
-/* Контекст — величина, за которой следят чаще прочего: по ней решают, когда
-   сжиматься. Поэтому она читается как число, а не как оговорка. */
-.forkTokCtx {
-  color: var(--vscode-foreground);
-}
-.forkTokCtxPct {
-  margin-left: 4px;
-  opacity: 0.7;
-}
-.forkTokCtxHigh,
-.forkTokCtxHigh .forkTokCtxPct {
-  color: var(--vscode-editorWarning-foreground);
-  opacity: 1;
-}
-/* Те же три дороги, что и в сводке, теми же цветами: ↓ читаем, ↑ пишем,
-   ↗ выход. Один цвет на величину во всех местах — иначе их приходится
-   опознавать заново в каждом. */
-.forkTokCache {
-  color: var(--fork-blue);
-}
-.forkTokCacheWrite {
-  color: var(--fork-purple);
-  opacity: 1;
-}
-.forkTokOut {
-  color: var(--fork-green);
-}
-.forkTokSeg {
-  opacity: 0.6;
-}
-/* Счётчики чужой ленты. Цвет тот же, а вот «агент» слева гореть обязан:
-   единственное, что отличает эти числа от моих, — чей они счёт. */
-.forkTokensAgent > .forkTokSeg {
-  color: var(--vscode-textLink-foreground);
-  opacity: 1;
-}
-
-/* Путь, ветка и знак «завести рядом» */
-.forkCwdPath {
-  color: var(--vscode-foreground);
-  opacity: 0.85;
-}
-.forkCwdBranch {
-  color: var(
-    --vscode-gitDecoration-modifiedResourceForeground,
-    var(--fork-orange)
-  );
-}
-.forkCwdPlus {
-  color: var(--vscode-textLink-foreground);
-}
-
-/* Полоса под строкой ввода: контекст и окна лимита.
-   Геометрия метра повторяет Завра — 84×6, скругление 2, три порога цвета. */
-.forkHud {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 10px 2px;
-  font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-}
-.forkHudSep {
-  opacity: 0.35;
-}
-/* Правый край строки: подсказка о сжатии и удалённое управление одной группой */
-.forkHudRight {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  margin-left: auto;
-}
-.forkRemote {
-  opacity: 0.6;
-  white-space: nowrap;
-}
-/* «Пора сжиматься» — тем же цветом, что и подчёркивание счётчика чтения */
-.forkCompactHint {
-  white-space: nowrap;
-  cursor: default;
-}
-.forkCompactHint-soft {
-  color: var(--vscode-charts-yellow, var(--fork-yellow));
-}
-.forkCompactHint-warm {
-  color: var(--vscode-charts-orange, var(--fork-orange));
-}
-.forkCompactHint-hot {
-  color: var(--vscode-editorError-foreground);
-}
-/* Счётчик прочитанного из кэша: подчёркивание по накопленному за отрезок */
-.forkRead-soft,
-.forkRead-warm,
-.forkRead-hot {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 3px;
-}
-.forkRead-soft {
-  text-decoration-color: var(--vscode-charts-yellow, var(--fork-yellow));
-}
-.forkRead-warm {
-  text-decoration-color: var(--vscode-charts-orange, var(--fork-orange));
-}
-.forkRead-hot {
-  text-decoration-color: var(--vscode-editorError-foreground);
-}
-.forkRemoteOn {
-  color: var(--vscode-charts-green, var(--fork-green));
-  opacity: 1;
-}
-
-/* форк: агенты сессии — по строке на брата, под полосой расхода */
-.forkAgentBar {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 0 10px 4px;
-  font-size: 11px;
-}
-.forkAgentRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 2px 6px;
-  border: none;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--vscode-descriptionForeground);
-  font: inherit;
-  font-size: 11px;
-  text-align: left;
-  cursor: pointer;
-}
-.forkAgentRow:hover {
-  background: var(--vscode-list-hoverBackground);
-}
-.forkAgentRowOn {
-  background: var(--vscode-list-activeSelectionBackground);
-  color: var(--vscode-list-activeSelectionForeground);
-}
-.forkAgentGlyph {
-  flex: none;
-  width: 10px;
-  text-align: center;
-}
-.forkAgentGlyph-running {
-  color: var(--vscode-charts-blue, var(--fork-blue));
-  animation: forkAgentPulse 1.4s ease-in-out infinite;
-}
-.forkAgentGlyph-done {
-  color: var(--vscode-charts-green, var(--fork-green));
-}
-.forkAgentGlyph-error {
-  color: var(--vscode-editorError-foreground);
-}
-@keyframes forkAgentPulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-.forkAgentGlyph-bg {
-  color: var(--vscode-charts-purple, var(--fork-purple));
-}
-.forkAgentRowFlat {
-  cursor: default;
-}
-.forkAgentRowFlat:hover {
-  background: transparent;
-}
-.forkAgentStop {
-  flex: none;
-  margin-left: 6px;
-  padding: 0 5px;
-  border: none;
-  border-radius: 3px;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-size: 9px;
-  opacity: 0.5;
-  cursor: pointer;
-}
-.forkAgentStop:hover {
-  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.2));
-  color: var(--vscode-editorError-foreground);
-  opacity: 1;
-}
-/* «в фон» — на карточке выполняющегося инструмента и в строке основного */
-.forkBgButton {
-  flex: none;
-  margin-left: 8px;
-  padding: 0 6px;
-  border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.35));
-  border-radius: 3px;
-  background: transparent;
-  color: var(--vscode-descriptionForeground);
-  font: inherit;
-  font-size: 10px;
-  line-height: 15px;
-  opacity: 0.65;
-  cursor: pointer;
-}
-.forkBgButton:hover {
-  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.2));
-  color: var(--vscode-charts-purple, var(--fork-purple));
-  opacity: 1;
-}
-/* Вход в ленту агента. Форма та же, что у «в фон»: обе кнопки живут в одной
-   строке заголовка, и разная форма читалась бы как разная важность. */
-.forkLaneButton {
-  flex: none;
-  margin-left: 8px;
-  padding: 0 6px;
-  border: 1px solid var(--vscode-widget-border, rgba(127, 127, 127, 0.35));
-  border-radius: 3px;
-  background: transparent;
-  color: var(--vscode-descriptionForeground);
-  font: inherit;
-  font-size: 10px;
-  line-height: 15px;
-  opacity: 0.65;
-  cursor: pointer;
-}
-.forkLaneButton:hover {
-  background: var(--vscode-toolbar-hoverBackground, rgba(127, 127, 127, 0.2));
-  color: var(--vscode-charts-purple, var(--fork-purple));
-  opacity: 1;
-}
-.forkAgentDepth {
-  flex: none;
-  opacity: 0.5;
-}
-.forkAgentLabel {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.forkAgentTail {
-  margin-left: auto;
-  flex: none;
-  opacity: 0.6;
-  font-variant-numeric: tabular-nums;
-}
-.forkMeter {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  cursor: default;
-}
-.forkMeterLabel {
-  opacity: 0.75;
-}
-.forkMeterBar {
-  display: inline-block;
-  width: 84px;
-  height: 6px;
-  border-radius: 2px;
-  background: var(--vscode-editorWidget-background, rgba(127, 127, 127, 0.25));
-  overflow: hidden;
-}
-.forkMeterFill {
-  display: block;
-  height: 100%;
-  background: var(--vscode-progressBar-background);
-  transition: width 120ms ease-out;
-}
-.forkMeterPct {
-  font-variant-numeric: tabular-nums;
-}
-.forkMeterTail {
-  opacity: 0.6;
-}
-.forkMeterMute {
-  opacity: 0.5;
-}
-/* «Лента агента» — не украшение, а признак того, что числа рядом ЧУЖИЕ.
-   Поэтому плашка, а не приглушённая подпись: приглушённое читается как
-   второстепенное, а здесь это первое, что надо знать про всю полосу. */
-.forkMeterAgent {
-  padding: 0 6px;
-  border-radius: 3px;
-  color: var(--vscode-badge-foreground);
-  background: var(--vscode-badge-background);
-  opacity: 0.95;
-}
-.forkMeterWarm .forkMeterFill {
-  background: var(--vscode-editorWarning-foreground);
-}
-.forkMeterWarm .forkMeterPct {
-  color: var(--vscode-editorWarning-foreground);
-}
-.forkMeterHot .forkMeterFill {
-  background: var(--vscode-editorError-foreground);
-}
-.forkMeterHot .forkMeterPct {
-  color: var(--vscode-editorError-foreground);
-}
-
-/* Каталог сессии в списке истории, рядом со временем */
-.forkSessionCwd {
-  font-size: 11px;
-  font-family: var(--vscode-editor-font-family, monospace);
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.7;
-  margin-left: 6px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  min-width: 0;
 }
