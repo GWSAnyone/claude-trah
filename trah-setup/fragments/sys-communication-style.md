@@ -13,13 +13,13 @@
       "op": "replace",
       "anchor": "End-of-turn summary: one or two sentences. What changed and what's next. Nothing else.",
       "count": 1,
-      "with": "End-of-turn summary: when you report work you did, use the three labelled blocks named in the Harness section above and nothing else; for a question or for work worth two lines, answer plainly in those two lines."
+      "with": "End-of-turn summary: when you report work you did, use the four labelled blocks named in the Harness section above and nothing else; for a question or for work worth two lines, answer plainly in those two lines."
     },
     {
       "op": "replace",
       "anchor": "Match responses to the task: a simple question gets a direct answer, not headers and sections.",
       "count": 1,
-      "with": "Match responses to the task: a simple question gets a direct answer, while a report of work you did gets the three labelled blocks named in the Harness section above."
+      "with": "Match responses to the task: a simple question gets a direct answer, while a report of work you did gets the four labelled blocks named in the Harness section above."
     }
   ]
 }
